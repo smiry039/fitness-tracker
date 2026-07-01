@@ -1,0 +1,96 @@
+// Fitness Tracker — data model
+// Backend-first: exercises, a routine, logged sessions/sets, and a Viking whose
+// stats grow from the volume you log. UI is intentionally minimal for now.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+/// A single movement. `muscleGroup` drives which Viking stat it feeds.
+/// `kind` controls how a logged set is measured and how XP is computed.
+model Exercise {
+  id          Int    @id @default(autoincrement())
+  name        String @unique
+  muscleGroup String // chest | back | legs | shoulders | arms | core | cardio
+  kind        String @default("weight") // weight | bodyweight | cardio
+
+  routineExercises RoutineExercise[]
+  setLogs          SetLog[]
+}
+
+/// A day in your training split (e.g. "Push", "Pull", "Legs").
+model RoutineDay {
+  id       Int    @id @default(autoincrement())
+  name     String
+  dayOrder Int    @default(0)
+
+  exercises RoutineExercise[]
+  sessions  WorkoutSession[]
+}
+
+/// The prescription: which exercise, target sets/reps, ordering within a day.
+model RoutineExercise {
+  id           Int    @id @default(autoincrement())
+  routineDayId Int
+  exerciseId   Int
+  order        Int    @default(0)
+  targetSets   Int    @default(3)
+  targetReps   String @default("8-12")
+
+  routineDay RoutineDay @relation(fields: [routineDayId], references: [id], onDelete: Cascade)
+  exercise   Exercise   @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@unique([routineDayId, exerciseId])
+}
+
+/// One workout you actually did, on a given date.
+model WorkoutSession {
+  id           Int      @id @default(autoincrement())
+  date         DateTime @default(now())
+  routineDayId Int?
+  notes        String?
+
+  routineDay RoutineDay? @relation(fields: [routineDayId], references: [id], onDelete: SetNull)
+  sets       SetLog[]
+}
+
+/// A single logged set. Weight in kg; duration for cardio.
+model SetLog {
+  id          Int    @id @default(autoincrement())
+  sessionId   Int
+  exerciseId  Int
+  setNumber   Int    @default(1)
+  reps        Int?
+  weight      Float? // kg
+  durationSec Int? // cardio
+  xpAwarded   Int    @default(0)
+
+  session  WorkoutSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  exercise Exercise       @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+}
+
+/// The character. Single-user for now (one Viking).
+model Viking {
+  id        Int          @id @default(autoincrement())
+  name      String       @default("Ragnar")
+  createdAt DateTime     @default(now())
+  stats     VikingStat[]
+}
+
+/// XP accumulated per stat (vigour | will | might | sinew | heart).
+/// Level is derived from xp in code, not stored, so the curve can be retuned.
+model VikingStat {
+  id       Int    @id @default(autoincrement())
+  vikingId Int
+  key      String
+  xp       Int    @default(0)
+
+  viking Viking @relation(fields: [vikingId], references: [id], onDelete: Cascade)
+
+  @@unique([vikingId, key])
+}

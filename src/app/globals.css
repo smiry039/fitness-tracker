@@ -1,0 +1,211 @@
+/* Deliberately minimal. Function over form for now. */
+:root {
+  --bg: #14110e;
+  --panel: #1e1a15;
+  --panel-2: #262019;
+  --border: #3a3128;
+  --text: #ece3d4;
+  --muted: #a99a82;
+  --accent: #c9a24b;
+  --accent-2: #7a9b76;
+  --danger: #c05a3e;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+nav.topnav {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+nav.topnav .brand {
+  font-weight: bold;
+  color: var(--accent);
+  margin-right: 16px;
+  align-self: center;
+}
+nav.topnav a.link {
+  padding: 6px 12px;
+  border-radius: 6px;
+  color: var(--text);
+}
+nav.topnav a.link:hover {
+  background: var(--panel-2);
+  text-decoration: none;
+}
+
+main {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px 16px 80px;
+}
+
+h1 {
+  font-size: 22px;
+  margin: 0 0 4px;
+}
+h2 {
+  font-size: 17px;
+  margin: 28px 0 10px;
+  color: var(--accent);
+}
+.muted {
+  color: var(--muted);
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+th,
+td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+th {
+  color: var(--muted);
+  font-weight: normal;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+input,
+select,
+textarea,
+button {
+  font-family: inherit;
+  font-size: 14px;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 1px solid var(--accent);
+}
+input[type="number"] {
+  width: 84px;
+}
+
+button {
+  cursor: pointer;
+  background: var(--accent);
+  color: #14110e;
+  border: none;
+  font-weight: bold;
+  padding: 8px 16px;
+}
+button:hover {
+  filter: brightness(1.08);
+}
+button.secondary {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  font-weight: normal;
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* stat / progress bars */
+.bar {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  height: 14px;
+  overflow: hidden;
+}
+.bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.badge {
+  display: inline-block;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 9px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.grid-cal {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+.grid-cal .cell {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  min-height: 64px;
+  padding: 6px;
+  font-size: 12px;
+}
+.grid-cal .cell.empty {
+  background: transparent;
+  border-color: transparent;
+}
+.grid-cal .cell.trained {
+  border-color: var(--accent);
+}
+.grid-cal .dow {
+  color: var(--muted);
+  text-align: center;
+  font-size: 12px;
+  padding-bottom: 2px;
+}
+
+.flash {
+  border: 1px solid var(--accent-2);
+  background: rgba(122, 155, 118, 0.12);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+}
+.flash.error {
+  border-color: var(--danger);
+  background: rgba(192, 90, 62, 0.12);
+}
