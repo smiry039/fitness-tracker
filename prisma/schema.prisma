@@ -3,11 +3,17 @@
 // stats grow from the volume you log. UI is intentionally minimal for now.
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  // driverAdapters lets us swap the SQLite file for Turso/libSQL at runtime.
+  previewFeatures = ["driverAdapters"]
+  // "native" for local dev; "rhel-openssl-3.0.x" for Vercel's serverless runtime.
+  binaryTargets   = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
   provider = "sqlite"
+  // Used only for local dev (the file). In production the libSQL driver adapter
+  // (Turso) takes over and this url is ignored — see src/lib/db-client.ts.
   url      = "file:./dev.db"
 }
 

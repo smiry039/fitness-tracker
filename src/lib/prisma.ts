@@ -1,15 +1,13 @@
 import { PrismaClient } from "@prisma/client";
+import { createPrismaClient } from "./db-client";
 
 // Reuse a single PrismaClient across hot-reloads in dev to avoid exhausting
-// SQLite connections.
+// connections. In production on Turso the adapter is configured in
+// createPrismaClient().
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
-  });
+export const prisma = globalForPrisma.prisma ?? createPrismaClient();
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;

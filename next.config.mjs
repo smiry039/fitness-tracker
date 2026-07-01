@@ -4,6 +4,15 @@ const nextConfig = {
   // Lean, self-contained server output for containerised hosting.
   output: "standalone",
   poweredByHeader: false,
+  // Keep native/db packages out of the bundle so their runtime bindings load
+  // correctly on the server (and are only loaded when Turso is configured).
+  experimental: {
+    serverComponentsExternalPackages: [
+      "@libsql/client",
+      "@prisma/adapter-libsql",
+      "@prisma/client",
+    ],
+  },
   async headers() {
     // Sensible defaults for a personal, single-origin app.
     return [

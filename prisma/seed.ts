@@ -5,9 +5,10 @@
 // `npm run db:reset` to change it. No fake workout history is seeded — the
 // graph and calendar fill in as you log real sessions.
 
-import { PrismaClient } from "@prisma/client";
+import { createPrismaClient } from "../src/lib/db-client";
 
-const prisma = new PrismaClient();
+// Uses Turso when TURSO_DATABASE_URL is set, else the local SQLite file.
+const prisma = createPrismaClient();
 
 type Kind = "weight" | "bodyweight" | "cardio";
 

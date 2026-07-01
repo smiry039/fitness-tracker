@@ -39,7 +39,8 @@ rep, cardio per minute. Levels are derived from XP by a curve in code
 ## Tech stack
 
 - **Next.js 14** (App Router, TypeScript) — pages + REST API in one project.
-- **Prisma + SQLite** — local file database (`prisma/dev.db`, git-ignored).
+- **Prisma** — SQLite file for local dev, **Turso (libSQL)** in production via a
+  driver adapter (auto-selected by env; see `src/lib/db-client.ts`).
 - **Recharts** — the progress graph.
 
 A REST API backs every screen (`/api/*`), so a future iOS client can talk to the
@@ -61,9 +62,11 @@ for the exact Day A / B / C exercises, targets, and cues.
   every query (no SQL injection).
 - **Hosting:** the app has no account system. Set `APP_PASSWORD` and the whole
   site sits behind HTTP Basic Auth (`src/middleware.ts`). Unset locally.
+- Production uses **Turso** (managed DB, token-based, rotatable) rather than a
+  file on the server — smaller attack surface, nothing to patch.
 
-See [DEPLOY.md](./DEPLOY.md) for hosting options and the SQLite persistence
-caveat.
+See [DEPLOY.md](./DEPLOY.md) for the recommended **Vercel + Turso** setup (free,
+persistent) and the Docker alternative.
 
 ## Getting started
 

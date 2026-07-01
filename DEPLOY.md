@@ -1,63 +1,90 @@
 # Deploying / hosting
 
-This is a **stateful** app: a Next.js server plus a **SQLite** database file.
-That one fact drives every hosting choice — you need somewhere the database file
-can live and persist between requests.
+This is a **stateful** app: a Next.js server plus a database. Locally that's a
+SQLite file; in production it's **Turso** (libSQL — SQLite's protocol, hosted).
+The app auto-switches: set `TURSO_DATABASE_URL` and it uses Turso, otherwise the
+local file (`src/lib/db-client.ts`).
 
-## Protect it first
+## Recommended: Vercel + Turso (free tier, no server to maintain)
 
-The app has no login system. Before putting it on a public URL, set a password
-so the world can't read or write your training log:
+Best for security + cost: Vercel runs the app serverlessly (nothing for you to
+patch, automatic HTTPS), Turso is a managed database reached by a rotatable
+token. Both have genuinely free tiers big enough for one person.
 
+### 1. Lock it down first
+
+The app has no accounts. Pick a strong password so your log isn't public:
+
+```bash
+openssl rand -base64 24
 ```
-APP_USER=you
-APP_PASSWORD=something-long-and-random
+
+You'll set this as `APP_PASSWORD` below; every page and API route then sits
+behind HTTP Basic Auth (`src/middleware.ts`).
+
+### 2. Create the Turso database
+
+Install the CLI (`brew install tursodatabase/tap/turso` or see turso.tech),
+then:
+
+```bash
+turso auth signup
+turso db create fitness-tracker
+turso db show fitness-tracker          # copy the libsql:// URL
+turso db tokens create fitness-tracker # copy the auth token
 ```
 
-With `APP_PASSWORD` set, every page and API route requires HTTP Basic Auth
-(enforced in `src/middleware.ts`). Unset locally = no prompt.
+Load the schema (generated from prisma/schema.prisma) and seed the routine:
 
-## Option A — Docker (any VPS, Fly.io, Railway, a home server) — recommended
+```bash
+# schema
+turso db shell fitness-tracker < prisma/turso-schema.sql
 
-The included `Dockerfile` builds a self-contained image and keeps the database
-in `/app/data` so it survives restarts.
+# routine data — run against Turso by exporting the two vars first
+export TURSO_DATABASE_URL="libsql://...."   # from `db show`
+export TURSO_AUTH_TOKEN="...."              # from `db tokens create`
+npx tsx prisma/seed.ts
+```
+
+> Re-run these two lines any time you change `prisma/seed.ts`. To rebuild the
+> schema file after a `schema.prisma` change:
+> `npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script > prisma/turso-schema.sql`
+
+### 3. Deploy on Vercel
+
+1. Push this repo to GitHub (done — it's on `main`).
+2. On vercel.com: **New Project → import the repo.** It auto-detects Next.js;
+   no build settings needed (`postinstall` runs `prisma generate`).
+3. Add **Environment Variables** (Production + Preview):
+   - `TURSO_DATABASE_URL` — the `libsql://` URL
+   - `TURSO_AUTH_TOKEN` — the token
+   - `APP_USER` — a username (e.g. your name)
+   - `APP_PASSWORD` — the `openssl rand` value from step 1
+4. Deploy. From then on, every push to `main` auto-deploys.
+
+You'll get a password-protected `https://…vercel.app` URL, free, with data that
+persists in Turso. **Never commit the token** — it lives only in Vercel's env.
+
+## Alternative: Docker (self-host / VPS / Fly.io / Railway)
+
+Keeps SQLite as-is with a persistent volume. See the `Dockerfile`:
 
 ```bash
 docker build -t fitness-tracker .
-docker run -d -p 3000:3000 \
-  -v fitness_data:/app/data \
-  -e APP_USER=you -e APP_PASSWORD=change-me \
+docker run -d -p 3000:3000 -v fitness_data:/app/data \
+  -e APP_USER=you -e APP_PASSWORD="$(openssl rand -base64 24)" \
   fitness-tracker
+docker exec -it <container> npx tsx prisma/seed.ts   # first-time routine load
 ```
 
-The container runs `prisma db push` on boot to create the schema on the volume,
-then starts the server. To load the routine the first time:
+The container has no `TURSO_*` vars, so it uses the SQLite file on the mounted
+volume at `/app/data`.
 
-```bash
-docker exec -it <container> npx tsx prisma/seed.ts
-```
+## What won't work as-is
 
-## Option B — Railway / Fly.io / Render
-
-All three can build the `Dockerfile` directly. Attach a **persistent volume**
-mounted at `/app/data` and set the `APP_USER` / `APP_PASSWORD` env vars. Without
-a persistent volume the SQLite file is wiped on every deploy.
-
-## What about GitHub Pages / Vercel?
-
-- **GitHub Pages** hosts static files only. It cannot run the server or the API,
-  so it can't host this app as-is.
-- **Vercel** runs Next.js beautifully, but its serverless filesystem is
-  ephemeral — a SQLite file there does not persist writes. To use Vercel, swap
-  the datasource to a hosted database (e.g. **Turso/libSQL**, or Postgres via
-  `@prisma/adapter-*`). That's a small `schema.prisma` change plus an env var,
-  and is the natural next step if you want a zero-ops URL.
-
-## Summary
-
-| Host                    | Works as-is? | Notes                                  |
-| ----------------------- | ------------ | -------------------------------------- |
-| Docker on a VPS         | ✅           | Persistent volume at `/app/data`       |
-| Railway / Fly / Render  | ✅           | Add a persistent volume                |
-| Vercel                  | ⚠️           | Needs a hosted DB (Turso/Postgres)     |
-| GitHub Pages            | ❌           | Static only — no server/DB             |
+| Host                    | Works?       | Notes                                   |
+| ----------------------- | ------------ | --------------------------------------- |
+| **Vercel + Turso**      | ✅ (free)    | Recommended. Managed, HTTPS, persistent |
+| Docker on a VPS / Fly   | ✅           | Persistent volume at `/app/data`        |
+| Render (free)           | ❌           | No persistent disk on free tier         |
+| GitHub Pages            | ❌           | Static only — no server/DB              |
