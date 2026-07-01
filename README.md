@@ -24,13 +24,13 @@ and grow a **Viking** whose stats level up from the training you actually do.
 Every set you log feeds XP into exactly one stat, decided by the exercise's
 muscle group:
 
-| Stat       | Fed by                     |
-| ---------- | -------------------------- |
-| **Vigour** | chest, shoulders (pressing)|
-| **Will**   | back (pulling)             |
-| **Might**  | legs, core                 |
-| **Sinew**  | arms                       |
-| **Heart**  | cardio / conditioning      |
+| Stat       | Fed by                          |
+| ---------- | ------------------------------- |
+| **Vigour** | chest, delts (pressing)         |
+| **Will**   | back, rear delts, neck (pulling)|
+| **Might**  | legs, calves                    |
+| **Sinew**  | biceps, triceps, arms           |
+| **Heart**  | cardio / conditioning (future)  |
 
 XP per set: weighted lifts earn from volume (reps × kg), bodyweight moves per
 rep, cardio per minute. Levels are derived from XP by a curve in code
@@ -44,6 +44,26 @@ rep, cardio per minute. Levels are derived from XP by a curve in code
 
 A REST API backs every screen (`/api/*`), so a future iOS client can talk to the
 same endpoints.
+
+## The program
+
+The seeded routine is **"Aesthetic Mass"** — a Viking-bias full-body split
+trained 3×/week (Mon/Wed/Fri): chest & back twice every session (heaviest
+first), delts every day, rear delts twice, legs minimal. See `prisma/seed.ts`
+for the exact Day A / B / C exercises, targets, and cues.
+
+## Security
+
+- No secrets live in the repo; the database (`*.db`) and `.env` are git-ignored.
+- Security headers (CSP, `X-Frame-Options`, `nosniff`, etc.) are set in
+  `next.config.mjs`; `X-Powered-By` is disabled.
+- All writes go through validated, bounded input parsing; Prisma parameterises
+  every query (no SQL injection).
+- **Hosting:** the app has no account system. Set `APP_PASSWORD` and the whole
+  site sits behind HTTP Basic Auth (`src/middleware.ts`). Unset locally.
+
+See [DEPLOY.md](./DEPLOY.md) for hosting options and the SQLite persistence
+caveat.
 
 ## Getting started
 
@@ -99,13 +119,13 @@ src/
 
 ## Roadmap
 
-- Replace the seeded default routine with your real program.
+- Conditioning work to bring the **Heart** stat to life.
 - Hunts (→ nutrition tracking) and resource gathering.
 - Clans / shieldwalls: social layer, shared goals, territory (4X).
 - iOS app against this same API.
 
-## Note on the seed routine
+## Changing the routine
 
-`prisma/seed.ts` ships a generic Push/Pull/Legs split plus a few weeks of demo
-history so the graphs and calendar aren't empty on first run. Replace the
-`EXERCISES` / `ROUTINE` data with your own program and run `npm run db:reset`.
+The program lives in `prisma/seed.ts` (`EXERCISES` + `ROUTINE`). Edit it and run
+`npm run db:reset` to rebuild the database with your changes. No fake history is
+seeded — the graph and calendar fill in from the sessions you actually log.

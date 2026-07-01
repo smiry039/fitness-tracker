@@ -21,6 +21,8 @@ export default async function LogPage({
       muscleGroup: re.exercise.muscleGroup,
       targetSets: re.targetSets,
       targetReps: re.targetReps,
+      cue: re.cue,
+      optional: re.optional,
     })),
   }));
 

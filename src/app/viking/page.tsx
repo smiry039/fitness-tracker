@@ -70,13 +70,13 @@ export default async function VikingPage() {
 function describeGroups(key: string): string {
   switch (key) {
     case "vigour":
-      return "chest, shoulders (pressing)";
+      return "chest, delts (pressing)";
     case "will":
-      return "back (pulling)";
+      return "back, rear delts, neck (pulling)";
     case "might":
-      return "legs, core";
+      return "legs, calves";
     case "sinew":
-      return "arms";
+      return "biceps, triceps, arms";
     case "heart":
       return "cardio / conditioning";
     default:

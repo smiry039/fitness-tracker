@@ -16,31 +16,33 @@ export interface StatMeta {
   groups: string[]; // muscle groups that feed this stat
 }
 
-// The character sheet. Each stat maps to one or more training disciplines.
+// The character sheet. Each stat maps to one or more training disciplines
+// (the `muscleGroup` on an exercise). Every muscle group in the routine must
+// appear here or its XP goes nowhere.
 export const STAT_META: Record<StatKey, StatMeta> = {
   vigour: {
     key: "vigour",
     label: "Vigour",
-    blurb: "Raw pushing power — the strength to break a shield wall.",
-    groups: ["chest", "shoulders"],
+    blurb: "Raw pushing power — chest and shoulders to break a shield wall.",
+    groups: ["chest", "delts", "shoulders"],
   },
   will: {
     key: "will",
     label: "Will",
-    blurb: "Pulling strength and grit — the resolve to haul the longship home.",
-    groups: ["back"],
+    blurb: "Pulling strength and grit — back, rear delts, the neck of an ox.",
+    groups: ["back", "rear delt", "neck"],
   },
   might: {
     key: "might",
     label: "Might",
-    blurb: "Foundation and lower-body power — legs like oak.",
-    groups: ["legs", "core"],
+    blurb: "Foundation and lower-body power — legs and calves like oak.",
+    groups: ["legs", "calves", "core"],
   },
   sinew: {
     key: "sinew",
     label: "Sinew",
-    blurb: "Arm strength and grip — for axe and oar alike.",
-    groups: ["arms"],
+    blurb: "Arm strength and grip — biceps and triceps for axe and oar.",
+    groups: ["arms", "biceps", "triceps"],
   },
   heart: {
     key: "heart",

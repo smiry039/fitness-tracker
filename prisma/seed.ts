@@ -1,13 +1,11 @@
-// Seed data.
+// Seed data — "Aesthetic Mass", Viking-bias full body 3×/week (Mon/Wed/Fri).
 //
-// NOTE: The routine below is a sensible default Push/Pull/Legs split so the app
-// is usable out of the box. Replace it with your real program by editing this
-// file and running `npm run db:reset`. The sample session history exists only
-// to make the graph/calendar/Viking visibly work on first run — clear it any
-// time with the same command once you start logging for real.
+// This is the real program. Chest & back twice every session (heaviest first),
+// delts every day, rear delts twice, legs minimal. Edit here and run
+// `npm run db:reset` to change it. No fake workout history is seeded — the
+// graph and calendar fill in as you log real sessions.
 
 import { PrismaClient } from "@prisma/client";
-import { statForMuscleGroup, xpForSet } from "../src/lib/viking";
 
 const prisma = new PrismaClient();
 
@@ -19,80 +17,110 @@ interface ExDef {
   kind: Kind;
 }
 
-// Master exercise list.
+// Master exercise list (deduplicated across days). muscleGroup drives which
+// Viking stat the work feeds.
 const EXERCISES: ExDef[] = [
-  // Push
-  { name: "Bench Press", muscleGroup: "chest", kind: "weight" },
-  { name: "Overhead Press", muscleGroup: "shoulders", kind: "weight" },
-  { name: "Incline Dumbbell Press", muscleGroup: "chest", kind: "weight" },
-  { name: "Triceps Pushdown", muscleGroup: "arms", kind: "weight" },
-  { name: "Lateral Raise", muscleGroup: "shoulders", kind: "weight" },
-  // Pull
-  { name: "Deadlift", muscleGroup: "back", kind: "weight" },
-  { name: "Barbell Row", muscleGroup: "back", kind: "weight" },
-  { name: "Lat Pulldown", muscleGroup: "back", kind: "weight" },
-  { name: "Pull-up", muscleGroup: "back", kind: "bodyweight" },
-  { name: "Barbell Curl", muscleGroup: "arms", kind: "weight" },
   // Legs
-  { name: "Back Squat", muscleGroup: "legs", kind: "weight" },
+  { name: "Barbell Back Squat", muscleGroup: "legs", kind: "weight" },
   { name: "Romanian Deadlift", muscleGroup: "legs", kind: "weight" },
-  { name: "Leg Press", muscleGroup: "legs", kind: "weight" },
-  { name: "Leg Curl", muscleGroup: "legs", kind: "weight" },
-  { name: "Standing Calf Raise", muscleGroup: "legs", kind: "weight" },
-  { name: "Plank", muscleGroup: "core", kind: "cardio" },
-  // Conditioning
-  { name: "Running", muscleGroup: "cardio", kind: "cardio" },
-  { name: "Rowing Machine", muscleGroup: "cardio", kind: "cardio" },
+  { name: "Leg Press / Bulgarian Split Squat", muscleGroup: "legs", kind: "weight" },
+  { name: "Standing Calf Raise", muscleGroup: "calves", kind: "weight" },
+  // Chest
+  { name: "Flat DB / Barbell Press", muscleGroup: "chest", kind: "weight" },
+  { name: "Incline DB Press", muscleGroup: "chest", kind: "weight" },
+  { name: "Incline Barbell Press · 30°", muscleGroup: "chest", kind: "weight" },
+  { name: "Weighted Dip / Flat DB Press", muscleGroup: "chest", kind: "weight" },
+  { name: "Cable Fly · any angle", muscleGroup: "chest", kind: "weight" },
+  // Back
+  { name: "Lat Pulldown · wide", muscleGroup: "back", kind: "weight" },
+  { name: "Chest-Supported / T-Bar Row", muscleGroup: "back", kind: "weight" },
+  { name: "Weighted / Assisted Pull-up", muscleGroup: "back", kind: "weight" },
+  { name: "Seated Cable Row", muscleGroup: "back", kind: "weight" },
+  { name: "Seated Cable Row / Pulldown", muscleGroup: "back", kind: "weight" },
+  { name: "Single-Arm DB Row", muscleGroup: "back", kind: "weight" },
+  // Delts / rear delts
+  { name: "Cable / DB Lateral Raise", muscleGroup: "delts", kind: "weight" },
+  { name: "Face Pull · high rope", muscleGroup: "rear delt", kind: "weight" },
+  { name: "Reverse Pec Deck", muscleGroup: "rear delt", kind: "weight" },
+  // Arms
+  { name: "Incline DB Curl", muscleGroup: "biceps", kind: "weight" },
+  { name: "Cable Curl", muscleGroup: "biceps", kind: "weight" },
+  { name: "DB Hammer Curl", muscleGroup: "arms", kind: "weight" },
+  { name: "Cable Pushdown", muscleGroup: "triceps", kind: "weight" },
+  { name: "Overhead Cable Triceps Ext", muscleGroup: "triceps", kind: "weight" },
+  // Extras
+  { name: "Neck · plate / harness", muscleGroup: "neck", kind: "weight" },
 ];
 
-// The split. Each entry: exercise name -> [targetSets, targetReps].
-const ROUTINE: { name: string; exercises: [string, number, string][] }[] = [
-  {
-    name: "Push",
-    exercises: [
-      ["Bench Press", 4, "5-8"],
-      ["Overhead Press", 3, "6-10"],
-      ["Incline Dumbbell Press", 3, "8-12"],
-      ["Lateral Raise", 3, "12-15"],
-      ["Triceps Pushdown", 3, "10-15"],
-    ],
-  },
-  {
-    name: "Pull",
-    exercises: [
-      ["Deadlift", 3, "5"],
-      ["Barbell Row", 4, "6-10"],
-      ["Lat Pulldown", 3, "8-12"],
-      ["Pull-up", 3, "AMRAP"],
-      ["Barbell Curl", 3, "10-12"],
-    ],
-  },
-  {
-    name: "Legs",
-    exercises: [
-      ["Back Squat", 4, "5-8"],
-      ["Romanian Deadlift", 3, "8-10"],
-      ["Leg Press", 3, "10-12"],
-      ["Leg Curl", 3, "10-15"],
-      ["Standing Calf Raise", 4, "12-20"],
-      ["Plank", 3, "60s"],
-    ],
-  },
-  {
-    name: "Conditioning",
-    exercises: [
-      ["Running", 1, "20-30 min"],
-      ["Rowing Machine", 1, "10-15 min"],
-    ],
-  },
-];
-
-function daysAgo(n: number): Date {
-  const d = new Date();
-  d.setHours(18, 0, 0, 0);
-  d.setDate(d.getDate() - n);
-  return d;
+interface REDef {
+  name: string;
+  sets: number;
+  reps: string;
+  cue: string;
+  optional?: boolean;
 }
+
+interface DayDef {
+  name: string;
+  focus: string;
+  dayOfWeek: number; // 0=Sun .. 6=Sat
+  exercises: REDef[];
+}
+
+const ROUTINE: DayDef[] = [
+  {
+    name: "Day A",
+    focus: "Squat + flat bias",
+    dayOfWeek: 1, // Monday
+    exercises: [
+      { name: "Barbell Back Squat", sets: 3, reps: "6–8", cue: "High-bar, controlled, a depth you fully own." },
+      { name: "Flat DB / Barbell Press", sets: 3, reps: "8–10", cue: "Mid chest. Heaviest press while fresh." },
+      { name: "Lat Pulldown · wide", sets: 3, reps: "8–10", cue: "Width. Drive elbows down, no swing." },
+      { name: "Incline DB Press", sets: 3, reps: "10–12", cue: "Upper chest — second angle, lighter." },
+      { name: "Chest-Supported / T-Bar Row", sets: 3, reps: "8–10", cue: "Thickness. Squeeze blades, no heave." },
+      { name: "Cable / DB Lateral Raise", sets: 4, reps: "12–20", cue: "Slow, lead with elbows." },
+      { name: "Face Pull · high rope", sets: 3, reps: "15–20", cue: "Caps the shoulder. Light, pause at the back." },
+      { name: "Incline DB Curl", sets: 3, reps: "10–12", cue: "Long head — stretch behind the body." },
+      { name: "Cable Pushdown", sets: 3, reps: "10–12", cue: "Shoulders locked, full lockout." },
+      { name: "Standing Calf Raise", sets: 4, reps: "12–20", cue: "Pause at top, slow lower.", optional: true },
+      { name: "Neck · plate / harness", sets: 2, reps: "15–20", cue: "If you feel like it. Light, slow, controlled.", optional: true },
+    ],
+  },
+  {
+    name: "Day B",
+    focus: "Hinge + incline bias",
+    dayOfWeek: 3, // Wednesday
+    exercises: [
+      { name: "Romanian Deadlift", sets: 3, reps: "8–10", cue: "Hinge, soft knees, stop before the back rounds." },
+      { name: "Incline Barbell Press · 30°", sets: 3, reps: "6–8", cue: "Upper chest, heavy. Elbows ~45°." },
+      { name: "Weighted / Assisted Pull-up", sets: 3, reps: "6–10", cue: "Width. Full stretch, chin over bar." },
+      { name: "Weighted Dip / Flat DB Press", sets: 3, reps: "8–10", cue: "Lower/mid chest — second movement." },
+      { name: "Seated Cable Row", sets: 3, reps: "8–10", cue: "Thickness. Elbows tucked, squeeze." },
+      { name: "Cable / DB Lateral Raise", sets: 4, reps: "12–20", cue: "Every session. No exceptions." },
+      { name: "DB Hammer Curl", sets: 3, reps: "12–15", cue: "Brachialis + forearms." },
+      { name: "Overhead Cable Triceps Ext", sets: 3, reps: "10–12", cue: "Long head — stretch at the top." },
+      { name: "Standing Calf Raise", sets: 4, reps: "12–20", cue: "Pause at top, slow lower.", optional: true },
+      { name: "Neck · plate / harness", sets: 2, reps: "15–20", cue: "Optional, if it feels right on the day.", optional: true },
+    ],
+  },
+  {
+    name: "Day C",
+    focus: "Mixed + pump",
+    dayOfWeek: 5, // Friday
+    exercises: [
+      { name: "Leg Press / Bulgarian Split Squat", sets: 3, reps: "10–12", cue: "Leg volume without re-loading the spine." },
+      { name: "Incline DB Press", sets: 3, reps: "8–10", cue: "Upper chest first while fresh." },
+      { name: "Cable Fly · any angle", sets: 3, reps: "12–15", cue: "Stretch + squeeze. Second chest movement." },
+      { name: "Seated Cable Row / Pulldown", sets: 3, reps: "8–10", cue: "Pick whichever you didn't lead with this week." },
+      { name: "Single-Arm DB Row", sets: 3, reps: "10–12", cue: "Full stretch at the bottom, lower-lat focus." },
+      { name: "Cable / DB Lateral Raise", sets: 4, reps: "12–20", cue: "Constant tension — cables shine here." },
+      { name: "Reverse Pec Deck", sets: 3, reps: "15–20", cue: "Rear delts again — the 3D cap." },
+      { name: "Cable Curl", sets: 3, reps: "12–15", cue: "Arm pump to finish." },
+      { name: "Standing Calf Raise", sets: 4, reps: "12–20", cue: "Pause at top, slow lower.", optional: true },
+      { name: "Neck · plate / harness", sets: 2, reps: "15–20", cue: "Optional finisher if you've got it in you.", optional: true },
+    ],
+  },
+];
 
 async function main() {
   console.log("Resetting seed data...");
@@ -107,127 +135,46 @@ async function main() {
   await prisma.exercise.deleteMany();
 
   // Exercises
-  const exByName = new Map<string, { id: number; kind: string; muscleGroup: string }>();
+  const exIdByName = new Map<string, number>();
   for (const e of EXERCISES) {
     const created = await prisma.exercise.create({ data: e });
-    exByName.set(e.name, {
-      id: created.id,
-      kind: created.kind,
-      muscleGroup: created.muscleGroup,
-    });
+    exIdByName.set(e.name, created.id);
   }
   console.log(`  ${EXERCISES.length} exercises`);
 
   // Routine
-  const dayByName = new Map<string, number>();
   for (let i = 0; i < ROUTINE.length; i++) {
     const day = ROUTINE[i];
-    const created = await prisma.routineDay.create({
-      data: { name: day.name, dayOrder: i },
+    const createdDay = await prisma.routineDay.create({
+      data: {
+        name: day.name,
+        focus: day.focus,
+        dayOfWeek: day.dayOfWeek,
+        dayOrder: i,
+      },
     });
-    dayByName.set(day.name, created.id);
     for (let j = 0; j < day.exercises.length; j++) {
-      const [exName, sets, reps] = day.exercises[j];
-      const ex = exByName.get(exName)!;
+      const re = day.exercises[j];
+      const exerciseId = exIdByName.get(re.name);
+      if (!exerciseId) throw new Error(`Seed references unknown exercise: ${re.name}`);
       await prisma.routineExercise.create({
         data: {
-          routineDayId: created.id,
-          exerciseId: ex.id,
+          routineDayId: createdDay.id,
+          exerciseId,
           order: j,
-          targetSets: sets,
-          targetReps: reps,
+          targetSets: re.sets,
+          targetReps: re.reps,
+          cue: re.cue,
+          optional: re.optional ?? false,
         },
       });
     }
   }
-  console.log(`  ${ROUTINE.length} routine days`);
+  console.log(`  ${ROUTINE.length} training days (A/B/C)`);
 
-  // Viking with all stats at 0.
-  const viking = await prisma.viking.create({ data: { name: "Ragnar" } });
-
-  // --- Sample history (demo only) ---------------------------------------
-  // A few weeks of Push/Pull/Legs with light progressive overload so the
-  // graph trends upward and the calendar is populated.
-  const xpTotals: Record<string, number> = {};
-
-  async function logSession(
-    dayName: string,
-    when: Date,
-    sets: { exercise: string; reps?: number; weight?: number; durationSec?: number }[],
-  ) {
-    const session = await prisma.workoutSession.create({
-      data: { date: when, routineDayId: dayByName.get(dayName) ?? null },
-    });
-    let n = 1;
-    for (const s of sets) {
-      const ex = exByName.get(s.exercise)!;
-      const xp = xpForSet({
-        kind: ex.kind,
-        reps: s.reps,
-        weight: s.weight,
-        durationSec: s.durationSec,
-      });
-      const stat = statForMuscleGroup(ex.muscleGroup);
-      if (stat) xpTotals[stat] = (xpTotals[stat] ?? 0) + xp;
-      await prisma.setLog.create({
-        data: {
-          sessionId: session.id,
-          exerciseId: ex.id,
-          setNumber: n++,
-          reps: s.reps ?? null,
-          weight: s.weight ?? null,
-          durationSec: s.durationSec ?? null,
-          xpAwarded: xp,
-        },
-      });
-    }
-  }
-
-  // Three weeks, roughly PPL each week, bench/squat/deadlift creeping up.
-  const weeks = [
-    { off: 20, bench: 80, squat: 100, dead: 120, row: 60 },
-    { off: 13, bench: 82.5, squat: 105, dead: 125, row: 62.5 },
-    { off: 6, bench: 85, squat: 110, dead: 130, row: 65 },
-  ];
-
-  for (const w of weeks) {
-    await logSession("Push", daysAgo(w.off), [
-      { exercise: "Bench Press", reps: 6, weight: w.bench },
-      { exercise: "Bench Press", reps: 6, weight: w.bench },
-      { exercise: "Bench Press", reps: 5, weight: w.bench },
-      { exercise: "Overhead Press", reps: 8, weight: w.bench * 0.6 },
-      { exercise: "Incline Dumbbell Press", reps: 10, weight: 26 },
-      { exercise: "Lateral Raise", reps: 15, weight: 10 },
-      { exercise: "Triceps Pushdown", reps: 12, weight: 30 },
-    ]);
-    await logSession("Pull", daysAgo(w.off - 2), [
-      { exercise: "Deadlift", reps: 5, weight: w.dead },
-      { exercise: "Barbell Row", reps: 8, weight: w.row },
-      { exercise: "Barbell Row", reps: 8, weight: w.row },
-      { exercise: "Lat Pulldown", reps: 10, weight: 55 },
-      { exercise: "Pull-up", reps: 8 },
-      { exercise: "Barbell Curl", reps: 10, weight: 30 },
-    ]);
-    await logSession("Legs", daysAgo(w.off - 4), [
-      { exercise: "Back Squat", reps: 6, weight: w.squat },
-      { exercise: "Back Squat", reps: 6, weight: w.squat },
-      { exercise: "Romanian Deadlift", reps: 8, weight: w.squat * 0.8 },
-      { exercise: "Leg Press", reps: 12, weight: 160 },
-      { exercise: "Leg Curl", reps: 12, weight: 45 },
-      { exercise: "Standing Calf Raise", reps: 15, weight: 80 },
-      { exercise: "Plank", durationSec: 60 },
-    ]);
-    await logSession("Conditioning", daysAgo(w.off - 5), [
-      { exercise: "Running", durationSec: 25 * 60 },
-      { exercise: "Rowing Machine", durationSec: 12 * 60 },
-    ]);
-  }
-
-  // Persist the accumulated Viking XP.
-  for (const [key, xp] of Object.entries(xpTotals)) {
-    await prisma.vikingStat.create({ data: { vikingId: viking.id, key, xp } });
-  }
-  console.log(`  Viking "Ragnar" seeded with XP:`, xpTotals);
+  // The character starts fresh — all stats at 0. XP accrues as you log.
+  await prisma.viking.create({ data: { name: "Ragnar" } });
+  console.log(`  Viking "Ragnar" created (stats start at 0)`);
 
   console.log("Seed complete.");
 }

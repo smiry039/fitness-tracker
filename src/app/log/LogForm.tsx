@@ -10,6 +10,8 @@ interface ExerciseDef {
   muscleGroup: string;
   targetSets: number;
   targetReps: string;
+  cue?: string | null;
+  optional?: boolean;
 }
 
 interface DayDef {
@@ -208,11 +210,18 @@ export default function LogForm({
             <div
               style={{ display: "flex", justifyContent: "space-between", gap: 8 }}
             >
-              <strong>{ex.name}</strong>
+              <strong>
+                {ex.optional && <span className="badge">Extra</span>} {ex.name}
+              </strong>
               <span className="badge">
                 {ex.muscleGroup} · target {ex.targetSets} × {ex.targetReps}
               </span>
             </div>
+            {ex.cue && (
+              <p className="muted" style={{ margin: "4px 0 0", fontSize: 12 }}>
+                {ex.cue}
+              </p>
+            )}
             <table>
               <thead>
                 <tr>

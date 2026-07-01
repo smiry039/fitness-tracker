@@ -36,12 +36,17 @@ export async function getRoutineDay(id: number) {
 }
 
 /**
- * Suggest the next training day: whatever follows the most recently logged
- * day in the split rotation. Falls back to the first day.
+ * Suggest today's training day. If a day is scheduled for today's weekday, use
+ * it. Otherwise fall back to whatever follows the most recently logged day in
+ * the split rotation, then to the first day.
  */
 export async function getSuggestedDay() {
   const days = await getRoutine();
   if (days.length === 0) return null;
+
+  const todayDow = new Date().getDay(); // 0=Sun..6=Sat
+  const scheduled = days.find((d) => d.dayOfWeek === todayDow);
+  if (scheduled) return scheduled;
 
   const lastSession = await prisma.workoutSession.findFirst({
     where: { routineDayId: { not: null } },

@@ -25,6 +25,7 @@ export default async function TodayPage() {
           <h2 style={{ marginTop: 0 }}>
             Next up: {suggested.name} <span className="badge">suggested</span>
           </h2>
+          {suggested.focus && <p className="muted">{suggested.focus}</p>}
           <table>
             <thead>
               <tr>
@@ -36,7 +37,15 @@ export default async function TodayPage() {
             <tbody>
               {suggested.exercises.map((re) => (
                 <tr key={re.id}>
-                  <td>{re.exercise.name}</td>
+                  <td>
+                    {re.optional && <span className="badge">Extra</span>}{" "}
+                    {re.exercise.name}
+                    {re.cue && (
+                      <div className="muted" style={{ fontSize: 12 }}>
+                        {re.cue}
+                      </div>
+                    )}
+                  </td>
                   <td>
                     {re.targetSets} × {re.targetReps}
                   </td>
@@ -88,11 +97,15 @@ export default async function TodayPage() {
       {routine.map((day) => (
         <div className="panel" key={day.id}>
           <strong>{day.name}</strong>
+          {day.focus && <span className="muted"> — {day.focus}</span>}
           <table>
             <tbody>
               {day.exercises.map((re) => (
                 <tr key={re.id}>
-                  <td>{re.exercise.name}</td>
+                  <td>
+                    {re.optional && <span className="badge">Extra</span>}{" "}
+                    {re.exercise.name}
+                  </td>
                   <td className="muted">
                     {re.targetSets} × {re.targetReps}
                   </td>

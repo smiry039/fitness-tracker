@@ -23,24 +23,31 @@ model Exercise {
   setLogs          SetLog[]
 }
 
-/// A day in your training split (e.g. "Push", "Pull", "Legs").
+/// A day in your training split (e.g. "Day A"). `focus` is the day's theme and
+/// `dayOfWeek` (0=Sun..6=Sat) is when it's normally trained, used to suggest
+/// today's session.
 model RoutineDay {
-  id       Int    @id @default(autoincrement())
-  name     String
-  dayOrder Int    @default(0)
+  id        Int     @id @default(autoincrement())
+  name      String
+  focus     String?
+  dayOfWeek Int?
+  dayOrder  Int     @default(0)
 
   exercises RoutineExercise[]
   sessions  WorkoutSession[]
 }
 
 /// The prescription: which exercise, target sets/reps, ordering within a day.
+/// `cue` is the coaching note; `optional` marks the "if you've got time" extras.
 model RoutineExercise {
-  id           Int    @id @default(autoincrement())
+  id           Int     @id @default(autoincrement())
   routineDayId Int
   exerciseId   Int
-  order        Int    @default(0)
-  targetSets   Int    @default(3)
-  targetReps   String @default("8-12")
+  order        Int     @default(0)
+  targetSets   Int     @default(3)
+  targetReps   String  @default("8-12")
+  cue          String?
+  optional     Boolean @default(false)
 
   routineDay RoutineDay @relation(fields: [routineDayId], references: [id], onDelete: Cascade)
   exercise   Exercise   @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
