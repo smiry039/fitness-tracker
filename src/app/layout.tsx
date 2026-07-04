@@ -1,10 +1,27 @@
-import type { Metadata } from "next";
-import Link from "next/link";
+import type { Metadata, Viewport } from "next";
+import BottomNav from "./BottomNav";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Fitness Tracker",
   description: "A gamified workout tracker — train, log, and grow your Viking.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Fitness",
+  },
+  icons: {
+    icon: "/icon-192.png",
+    apple: "/apple-touch-icon.png",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#15171a",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -15,25 +32,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <nav className="topnav">
-          <span className="brand">⚔ Fitness Tracker</span>
-          <Link className="link" href="/">
-            Today
-          </Link>
-          <Link className="link" href="/log">
-            Log
-          </Link>
-          <Link className="link" href="/graph">
-            Graph
-          </Link>
-          <Link className="link" href="/calendar">
-            Calendar
-          </Link>
-          <Link className="link" href="/viking">
-            Viking
-          </Link>
-        </nav>
-        <main>{children}</main>
+        <div className="app">
+          <main className="screen">{children}</main>
+          <BottomNav />
+        </div>
       </body>
     </html>
   );

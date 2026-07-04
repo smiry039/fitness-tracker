@@ -1,7 +1,15 @@
 import Link from "next/link";
-import { getRoutine, getSuggestedDay, getRecentSessions, getViking } from "@/lib/data";
+import {
+  getRoutine,
+  getSuggestedDay,
+  getRecentSessions,
+  getViking,
+} from "@/lib/data";
 
 export const dynamic = "force-dynamic";
+
+const DOW = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export default async function TodayPage() {
   const [routine, suggested, recent, viking] = await Promise.all([
@@ -11,55 +19,59 @@ export default async function TodayPage() {
     getViking(),
   ]);
 
+  const now = new Date();
   const lastSession = recent[0];
+  const restDay = suggested ? suggested.dayOfWeek !== now.getDay() : true;
 
   return (
     <>
-      <h1>Today</h1>
-      <p className="muted">
-        {viking.name} — overall level {viking.overallLevel} · {viking.totalXp} XP total
+      <p className="eyebrow">
+        {DOW[now.getDay()]} · {MON[now.getMonth()]} {now.getDate()}
+      </p>
+      <h1 className="screen-title">
+        {suggested ? (
+          <>
+            {restDay ? "Next up" : "Today"}:{" "}
+            <span className="accent">{suggested.name}</span>
+          </>
+        ) : (
+          "Today"
+        )}
+      </h1>
+      <p className="screen-sub">
+        {suggested?.focus ? `${suggested.focus} · ` : ""}
+        {viking.name} — Lv {viking.overallLevel} · {viking.totalXp} XP
       </p>
 
       {suggested ? (
-        <div className="panel">
-          <h2 style={{ marginTop: 0 }}>
-            Next up: {suggested.name} <span className="badge">suggested</span>
-          </h2>
-          {suggested.focus && <p className="muted">{suggested.focus}</p>}
-          <table>
-            <thead>
-              <tr>
-                <th>Exercise</th>
-                <th>Target</th>
-                <th>Group</th>
-              </tr>
-            </thead>
-            <tbody>
-              {suggested.exercises.map((re) => (
-                <tr key={re.id}>
-                  <td>
-                    {re.optional && <span className="badge">Extra</span>}{" "}
-                    {re.exercise.name}
-                    {re.cue && (
-                      <div className="muted" style={{ fontSize: 12 }}>
-                        {re.cue}
-                      </div>
-                    )}
-                  </td>
-                  <td>
-                    {re.targetSets} × {re.targetReps}
-                  </td>
-                  <td className="muted">{re.exercise.muscleGroup}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <p style={{ marginBottom: 0 }}>
-            <Link href={`/log?day=${suggested.id}`}>→ Log this workout</Link>
-          </p>
+        <div className="card">
+          {suggested.exercises.map((re, i) => (
+            <div className="row" key={re.id}>
+              <span className={`num${re.optional ? " opt" : ""}`}>
+                {re.optional ? "+" : String(i + 1).padStart(2, "0")}
+              </span>
+              <span>
+                <span className="name">
+                  {re.optional && <span className="badge">Extra</span>}{" "}
+                  {re.exercise.name}
+                </span>
+                {re.cue && <div className="cue">{re.cue}</div>}
+              </span>
+              <span className="reps">
+                {re.targetSets} × {re.targetReps}
+              </span>
+            </div>
+          ))}
+          <Link
+            href={`/log?day=${suggested.id}`}
+            className="btn btn-block"
+            style={{ marginTop: 14 }}
+          >
+            Start {suggested.name}
+          </Link>
         </div>
       ) : (
-        <div className="panel">
+        <div className="card">
           No routine yet. Edit <code>prisma/seed.ts</code> and run{" "}
           <code>npm run db:reset</code>.
         </div>
@@ -67,56 +79,70 @@ export default async function TodayPage() {
 
       {lastSession && (
         <>
-          <h2>Last workout</h2>
-          <div className="panel">
-            <strong>{lastSession.routineDay?.name ?? "Freeform"}</strong>{" "}
-            <span className="muted">
-              — {new Date(lastSession.date).toLocaleDateString()}
-            </span>
-            <table>
-              <tbody>
-                {lastSession.sets.map((s) => (
-                  <tr key={s.id}>
-                    <td>{s.exercise.name}</td>
-                    <td className="muted">
-                      {s.durationSec
-                        ? `${Math.round(s.durationSec / 60)} min`
-                        : `${s.reps ?? "-"} reps` +
-                          (s.weight ? ` @ ${s.weight} kg` : "")}
-                    </td>
-                    <td className="muted">+{s.xpAwarded} XP</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <h2 className="section">Last workout</h2>
+          <div className="card">
+            <div className="card-head">
+              <span className="card-title">
+                {lastSession.routineDay?.name ?? "Freeform"}
+              </span>
+              <span className="badge neutral">
+                {new Date(lastSession.date).toLocaleDateString(undefined, {
+                  day: "numeric",
+                  month: "short",
+                })}
+              </span>
+            </div>
+            {lastSession.sets.map((s, i) => (
+              <div className="row" key={s.id}>
+                <span className="num">{String(i + 1).padStart(2, "0")}</span>
+                <span className="name">{s.exercise.name}</span>
+                <span className="reps">
+                  {s.durationSec
+                    ? `${Math.round(s.durationSec / 60)} min`
+                    : `${s.reps ?? "–"}${s.weight ? ` × ${s.weight}kg` : ""}`}
+                </span>
+              </div>
+            ))}
           </div>
         </>
       )}
 
-      <h2>Full routine</h2>
+      <h2 className="section">Full program</h2>
       {routine.map((day) => (
-        <div className="panel" key={day.id}>
-          <strong>{day.name}</strong>
-          {day.focus && <span className="muted"> — {day.focus}</span>}
-          <table>
-            <tbody>
-              {day.exercises.map((re) => (
-                <tr key={re.id}>
-                  <td>
-                    {re.optional && <span className="badge">Extra</span>}{" "}
-                    {re.exercise.name}
-                  </td>
-                  <td className="muted">
-                    {re.targetSets} × {re.targetReps}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <p style={{ marginBottom: 0 }}>
-            <Link href={`/log?day=${day.id}`}>→ Log {day.name}</Link>
-          </p>
-        </div>
+        <details className="day-fold" key={day.id}>
+          <summary>
+            <span>
+              {day.name}
+              {day.focus && (
+                <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>
+                  {" "}
+                  — {day.focus}
+                </span>
+              )}
+            </span>
+            <span className="chev">▶</span>
+          </summary>
+          <div className="fold-body">
+            {day.exercises.map((re, i) => (
+              <div className="row" key={re.id}>
+                <span className={`num${re.optional ? " opt" : ""}`}>
+                  {re.optional ? "+" : String(i + 1).padStart(2, "0")}
+                </span>
+                <span className="name">{re.exercise.name}</span>
+                <span className="reps">
+                  {re.targetSets} × {re.targetReps}
+                </span>
+              </div>
+            ))}
+            <Link
+              href={`/log?day=${day.id}`}
+              className="btn btn-quiet btn-block"
+              style={{ marginTop: 14 }}
+            >
+              Log {day.name}
+            </Link>
+          </div>
+        </details>
       ))}
     </>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CartesianGrid,
   Line,
@@ -26,11 +26,16 @@ interface Point {
 
 type Metric = "estimated1RM" | "topWeight" | "totalVolume";
 
-const METRIC_LABEL: Record<Metric, string> = {
-  estimated1RM: "Est. 1RM (kg)",
-  topWeight: "Top set (kg)",
-  totalVolume: "Volume (kg)",
-};
+const METRICS: { key: Metric; label: string; unit: string }[] = [
+  { key: "estimated1RM", label: "Est. 1RM", unit: "kg" },
+  { key: "topWeight", label: "Top set", unit: "kg" },
+  { key: "totalVolume", label: "Volume", unit: "kg" },
+];
+
+// Palette tokens; copper validated ≥3:1 against the raised surface.
+const COPPER = "#c77b43";
+const GRID = "#2c3036";
+const INK_MUTED = "#8a9099";
 
 export default function GraphClient({ exercises }: { exercises: ExOption[] }) {
   const [exerciseId, setExerciseId] = useState<number | null>(
@@ -60,70 +65,126 @@ export default function GraphClient({ exercises }: { exercises: ExOption[] }) {
     };
   }, [exerciseId]);
 
+  const meta = METRICS.find((m) => m.key === metric)!;
+
+  const summary = useMemo(() => {
+    if (data.length === 0) return null;
+    const values = data.map((d) => d[metric]);
+    const latest = values[values.length - 1];
+    const best = Math.max(...values);
+    const first = values[0];
+    const delta = latest - first;
+    return { latest, best, delta, sessions: data.length };
+  }, [data, metric]);
+
   if (exercises.length === 0) {
-    return <div className="panel">No weighted exercises to chart yet.</div>;
+    return <div className="card">No weighted exercises to chart yet.</div>;
   }
 
   return (
     <>
-      <div className="panel">
-        <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-          <label>
-            Exercise{" "}
-            <select
-              value={exerciseId ?? ""}
-              onChange={(e) => setExerciseId(Number(e.target.value))}
-            >
-              {exercises.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Metric{" "}
-            <select
-              value={metric}
-              onChange={(e) => setMetric(e.target.value as Metric)}
-            >
-              <option value="estimated1RM">Estimated 1RM</option>
-              <option value="topWeight">Top set weight</option>
-              <option value="totalVolume">Total volume</option>
-            </select>
-          </label>
-        </div>
+      <label className="field" style={{ marginBottom: 10 }}>
+        <span>Exercise</span>
+        <select
+          value={exerciseId ?? ""}
+          onChange={(e) => setExerciseId(Number(e.target.value))}
+        >
+          {exercises.map((e) => (
+            <option key={e.id} value={e.id}>
+              {e.name}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <div className="pills" style={{ marginBottom: 12 }} role="group" aria-label="Metric">
+        {METRICS.map((m) => (
+          <button
+            key={m.key}
+            type="button"
+            className="pill"
+            aria-pressed={metric === m.key}
+            onClick={() => setMetric(m.key)}
+          >
+            {m.label}
+          </button>
+        ))}
       </div>
 
-      <div className="panel">
+      {summary && (
+        <div className="stat-tiles">
+          <div className="tile">
+            <div className="k">Latest {meta.label}</div>
+            <div className="v">
+              {summary.latest} <small>{meta.unit}</small>
+            </div>
+          </div>
+          <div className="tile">
+            <div className="k">Change · {summary.sessions} sessions</div>
+            <div className="v" style={{ color: summary.delta >= 0 ? "var(--good)" : "var(--danger)" }}>
+              {summary.delta >= 0 ? "+" : ""}
+              {Math.round(summary.delta * 10) / 10} <small>{meta.unit}</small>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="card" style={{ padding: "16px 8px 8px 0" }}>
         {loading ? (
-          <p className="muted">Loading…</p>
+          <p className="muted" style={{ padding: "40px 24px" }}>
+            Loading…
+          </p>
         ) : data.length === 0 ? (
-          <p className="muted">
-            No logged sets for this exercise yet. Log a workout to see it track.
+          <p className="muted" style={{ padding: "40px 24px" }}>
+            No logged sets for this lift yet. Log a workout and it starts
+            tracking.
           </p>
         ) : (
-          <div style={{ width: "100%", height: 320 }}>
+          <div style={{ width: "100%", height: 260 }}>
             <ResponsiveContainer>
-              <LineChart data={data} margin={{ top: 8, right: 16, bottom: 8, left: 0 }}>
-                <CartesianGrid stroke="#3a3128" strokeDasharray="3 3" />
-                <XAxis dataKey="date" stroke="#a99a82" fontSize={12} />
-                <YAxis stroke="#a99a82" fontSize={12} domain={["auto", "auto"]} />
+              <LineChart
+                data={data}
+                margin={{ top: 8, right: 16, bottom: 4, left: -6 }}
+              >
+                <CartesianGrid stroke={GRID} vertical={false} />
+                <XAxis
+                  dataKey="date"
+                  stroke={INK_MUTED}
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={{ stroke: GRID }}
+                  tickFormatter={(d: string) => d.slice(5).replace("-", "/")}
+                />
+                <YAxis
+                  stroke={INK_MUTED}
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                  domain={["auto", "auto"]}
+                  width={44}
+                />
                 <Tooltip
+                  cursor={{ stroke: INK_MUTED, strokeDasharray: "3 3" }}
                   contentStyle={{
-                    background: "#1e1a15",
-                    border: "1px solid #3a3128",
-                    borderRadius: 8,
-                    color: "#ece3d4",
+                    background: "#15171a",
+                    border: "1px solid #2c3036",
+                    borderRadius: 10,
+                    color: "#eceae4",
+                    fontSize: 13,
                   }}
-                  formatter={(value) => [value as number, METRIC_LABEL[metric]]}
+                  labelStyle={{ color: INK_MUTED, fontSize: 11 }}
+                  formatter={(value) => [
+                    `${value} ${meta.unit}`,
+                    meta.label,
+                  ]}
                 />
                 <Line
                   type="monotone"
                   dataKey={metric}
-                  stroke="#c9a24b"
+                  stroke={COPPER}
                   strokeWidth={2}
-                  dot={{ r: 3 }}
+                  dot={{ r: 3, fill: COPPER, strokeWidth: 0 }}
+                  activeDot={{ r: 5, stroke: "#1e2126", strokeWidth: 2 }}
                 />
               </LineChart>
             </ResponsiveContainer>

@@ -14,6 +14,8 @@ export default async function LogPage({
   const days = routine.map((d) => ({
     id: d.id,
     name: d.name,
+    focus: d.focus,
+    dayOfWeek: d.dayOfWeek,
     exercises: d.exercises.map((re) => ({
       exerciseId: re.exerciseId,
       name: re.exercise.name,
@@ -30,9 +32,12 @@ export default async function LogPage({
 
   return (
     <>
-      <h1>Log a workout</h1>
-      <p className="muted">
-        Fill in the sets you completed. Empty sets are ignored. Weight in kg.
+      <p className="eyebrow">Log a workout</p>
+      <h1 className="screen-title">
+        Every set <span className="accent">counts.</span>
+      </h1>
+      <p className="screen-sub">
+        Fill in what you did — empty sets are ignored. Weight in kg.
       </p>
       <LogForm days={days} preselectDayId={preselect} />
     </>

@@ -12,9 +12,12 @@ export default async function GraphPage() {
 
   return (
     <>
-      <h1>Progress</h1>
-      <p className="muted">
-        Per-session best set for a lift. Estimated 1RM uses the Epley formula.
+      <p className="eyebrow">Progress</p>
+      <h1 className="screen-title">
+        Chase the <span className="accent">numbers.</span>
+      </h1>
+      <p className="screen-sub">
+        Per-session best for a lift. Est. 1RM uses the Epley formula.
       </p>
       <GraphClient exercises={options} />
     </>

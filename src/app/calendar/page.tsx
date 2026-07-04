@@ -7,7 +7,7 @@ const MONTHS = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ];
-const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const DOW = ["M", "T", "W", "T", "F", "S", "S"];
 
 export default async function CalendarPage({
   searchParams,
@@ -42,34 +42,36 @@ export default async function CalendarPage({
   const nextM = month === 12 ? 1 : month + 1;
   const nextY = month === 12 ? year + 1 : year;
 
+  const isThisMonth =
+    year === now.getFullYear() && month === now.getMonth() + 1;
   const trainedDays = byDay.size;
 
   return (
     <>
-      <h1>Calendar</h1>
-      <p className="muted">
-        {trainedDays} training day{trainedDays === 1 ? "" : "s"} in{" "}
-        {MONTHS[month - 1]} {year}.
+      <p className="eyebrow">Calendar</p>
+      <h1 className="screen-title">
+        {trainedDays} day{trainedDays === 1 ? "" : "s"}{" "}
+        <span className="accent">trained.</span>
+      </h1>
+      <p className="screen-sub">
+        {MONTHS[month - 1]} {year}
       </p>
 
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 12,
-        }}
-      >
-        <Link href={`/calendar?y=${prevY}&m=${prevM}`}>← {MONTHS[prevM - 1]}</Link>
+      <div className="cal-nav">
+        <Link href={`/calendar?y=${prevY}&m=${prevM}`} aria-label="Previous month">
+          ‹
+        </Link>
         <strong>
           {MONTHS[month - 1]} {year}
         </strong>
-        <Link href={`/calendar?y=${nextY}&m=${nextM}`}>{MONTHS[nextM - 1]} →</Link>
+        <Link href={`/calendar?y=${nextY}&m=${nextM}`} aria-label="Next month">
+          ›
+        </Link>
       </div>
 
       <div className="grid-cal" style={{ marginBottom: 4 }}>
-        {DOW.map((d) => (
-          <div className="dow" key={d}>
+        {DOW.map((d, i) => (
+          <div className="dow" key={i}>
             {d}
           </div>
         ))}
@@ -78,18 +80,40 @@ export default async function CalendarPage({
         {cells.map((d, i) => {
           if (d === null) return <div className="cell empty" key={`e${i}`} />;
           const workouts = byDay.get(d);
+          const isToday = isThisMonth && d === now.getDate();
           return (
-            <div className={`cell${workouts ? " trained" : ""}`} key={d}>
-              <div className="muted">{d}</div>
-              {workouts?.map((w, j) => (
-                <div key={j}>
-                  <span style={{ color: "var(--accent)" }}>⚔</span> {w.name}
-                </div>
-              ))}
+            <div
+              className={`cell${workouts ? " trained" : ""}${isToday ? " today" : ""}`}
+              key={d}
+            >
+              <span>{d}</span>
+              {workouts && <span className="dot" />}
             </div>
           );
         })}
       </div>
+
+      {sessions.length > 0 && (
+        <>
+          <h2 className="section">This month</h2>
+          <div className="card">
+            {sessions
+              .slice()
+              .reverse()
+              .map((s) => (
+                <div className="row" key={s.id}>
+                  <span className="num">
+                    {String(new Date(s.date).getDate()).padStart(2, "0")}
+                  </span>
+                  <span className="name">
+                    {s.routineDay?.name ?? "Freeform"}
+                  </span>
+                  <span className="reps">{s.sets.length} sets</span>
+                </div>
+              ))}
+          </div>
+        </>
+      )}
     </>
   );
 }

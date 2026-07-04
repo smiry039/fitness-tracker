@@ -54,6 +54,10 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Protect everything except Next's static assets and the favicon.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // Protect everything except Next's static assets and the PWA assets —
+  // launchers fetch the manifest/icons without credentials when installing
+  // to the home screen, and none of them contain user data.
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icon-192.png|icon-512.png|apple-touch-icon.png).*)",
+  ],
 };

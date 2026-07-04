@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 interface ExerciseDef {
@@ -17,6 +17,8 @@ interface ExerciseDef {
 interface DayDef {
   id: number;
   name: string;
+  focus?: string | null;
+  dayOfWeek?: number | null;
   exercises: ExerciseDef[];
 }
 
@@ -39,13 +41,16 @@ export default function LogForm({
 }) {
   const router = useRouter();
 
+  // Prefer the explicit ?day=, then today's scheduled day, then the first.
   const initialDay =
-    days.find((d) => d.id === preselectDayId) ?? days[0] ?? null;
+    days.find((d) => d.id === preselectDayId) ??
+    days.find((d) => d.dayOfWeek === new Date().getDay()) ??
+    days[0] ??
+    null;
 
   const [dayId, setDayId] = useState<number | null>(initialDay?.id ?? null);
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
-  // rows keyed by exerciseId
   const [rows, setRows] = useState<Record<number, SetRow[]>>(() =>
     buildInitialRows(initialDay),
   );
@@ -58,6 +63,24 @@ export default function LogForm({
     () => days.find((d) => d.id === dayId) ?? null,
     [days, dayId],
   );
+
+  // Auto-dismiss the toast.
+  useEffect(() => {
+    if (!flash) return;
+    const t = setTimeout(() => setFlash(null), 4500);
+    return () => clearTimeout(t);
+  }, [flash]);
+
+  const filledCount = useMemo(() => {
+    if (!day) return 0;
+    let n = 0;
+    for (const ex of day.exercises) {
+      for (const r of rows[ex.exerciseId] ?? []) {
+        if (r.reps || r.durationMin) n++;
+      }
+    }
+    return n;
+  }, [day, rows]);
 
   function onChangeDay(id: number) {
     const next = days.find((d) => d.id === id) ?? null;
@@ -80,10 +103,14 @@ export default function LogForm({
   }
 
   function addSet(exerciseId: number) {
-    setRows((prev) => ({
-      ...prev,
-      [exerciseId]: [...(prev[exerciseId] ?? []), blankRow()],
-    }));
+    setRows((prev) => {
+      const list = prev[exerciseId] ?? [];
+      // Start the new set prefilled with the previous set's numbers — at the
+      // gym the next set is usually the same load.
+      const last = list[list.length - 1];
+      const next = last ? { ...last } : blankRow();
+      return { ...prev, [exerciseId]: [...list, next] };
+    });
   }
 
   async function submit() {
@@ -140,12 +167,13 @@ export default function LogForm({
 
       const parts = Object.entries(data.xpByStat ?? {})
         .map(([k, v]) => `${k} +${v}`)
-        .join(", ");
+        .join(" · ");
       setFlash({
         kind: "ok",
-        msg: `Saved! +${data.totalXp} XP${parts ? ` (${parts})` : ""}.`,
+        msg: `⚔ Saved! +${data.totalXp} XP${parts ? ` — ${parts}` : ""}`,
       });
       setRows(buildInitialRows(day));
+      setNotes("");
       router.refresh();
     } catch (e) {
       setFlash({
@@ -159,7 +187,7 @@ export default function LogForm({
 
   if (days.length === 0) {
     return (
-      <div className="panel">
+      <div className="card">
         No routine defined yet. Seed one with <code>npm run db:reset</code>.
       </div>
     );
@@ -167,124 +195,104 @@ export default function LogForm({
 
   return (
     <>
-      {flash && (
-        <div className={`flash${flash.kind === "error" ? " error" : ""}`}>
-          {flash.msg}
-        </div>
-      )}
-
-      <div className="panel">
-        <div
-          style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}
-        >
-          <label>
-            Day{" "}
-            <select
-              value={dayId ?? ""}
-              onChange={(e) => onChangeDay(Number(e.target.value))}
-            >
-              {days.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Date{" "}
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
-          </label>
-        </div>
+      <div className="pills" style={{ marginBottom: 12 }} role="group" aria-label="Training day">
+        {days.map((d) => (
+          <button
+            key={d.id}
+            type="button"
+            className="pill"
+            aria-pressed={d.id === dayId}
+            onClick={() => onChangeDay(d.id)}
+          >
+            {d.name}
+          </button>
+        ))}
       </div>
+
+      <label className="field" style={{ marginBottom: 16 }}>
+        <span>Date</span>
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+        />
+      </label>
 
       {day?.exercises.map((ex) => {
         const isCardio = ex.kind === "cardio";
         const isBodyweight = ex.kind === "bodyweight";
         const list = rows[ex.exerciseId] ?? [];
         return (
-          <div className="panel" key={ex.exerciseId}>
-            <div
-              style={{ display: "flex", justifyContent: "space-between", gap: 8 }}
-            >
-              <strong>
-                {ex.optional && <span className="badge">Extra</span>} {ex.name}
-              </strong>
-              <span className="badge">
-                {ex.muscleGroup} · target {ex.targetSets} × {ex.targetReps}
+          <div className="card" key={ex.exerciseId}>
+            <div className="card-head">
+              <span className="card-title">
+                {ex.optional && <span className="badge">Extra</span>}{" "}
+                {ex.name}
+              </span>
+              <span className="reps" style={{ flexShrink: 0 }}>
+                {ex.targetSets} × {ex.targetReps}
               </span>
             </div>
             {ex.cue && (
-              <p className="muted" style={{ margin: "4px 0 0", fontSize: 12 }}>
+              <p className="muted" style={{ fontSize: 12, marginTop: 3 }}>
                 {ex.cue}
               </p>
             )}
-            <table>
-              <thead>
-                <tr>
-                  <th style={{ width: 40 }}>Set</th>
-                  {isCardio ? (
-                    <th>Minutes</th>
-                  ) : (
-                    <>
-                      <th>Reps</th>
-                      {!isBodyweight && <th>Weight (kg)</th>}
-                    </>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {list.map((r, i) => (
-                  <tr key={i}>
-                    <td className="muted">{i + 1}</td>
-                    {isCardio ? (
-                      <td>
-                        <input
-                          type="number"
-                          min="0"
-                          value={r.durationMin}
-                          onChange={(e) =>
-                            updateRow(ex.exerciseId, i, "durationMin", e.target.value)
-                          }
-                        />
-                      </td>
-                    ) : (
-                      <>
-                        <td>
-                          <input
-                            type="number"
-                            min="0"
-                            value={r.reps}
-                            onChange={(e) =>
-                              updateRow(ex.exerciseId, i, "reps", e.target.value)
-                            }
-                          />
-                        </td>
-                        {!isBodyweight && (
-                          <td>
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.5"
-                              value={r.weight}
-                              onChange={(e) =>
-                                updateRow(ex.exerciseId, i, "weight", e.target.value)
-                              }
-                            />
-                          </td>
-                        )}
-                      </>
+
+            <div className={`field-cols${isCardio ? " cardio" : ""}`}>
+              <span>Set</span>
+              {isCardio ? (
+                <span>Minutes</span>
+              ) : (
+                <>
+                  <span>Reps</span>
+                  {!isBodyweight && <span>kg</span>}
+                </>
+              )}
+            </div>
+            {list.map((r, i) => (
+              <div className={`set-row${isCardio ? " cardio" : ""}`} key={i}>
+                <span className="set-n">{i + 1}</span>
+                {isCardio ? (
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="–"
+                    value={r.durationMin}
+                    onChange={(e) =>
+                      updateRow(ex.exerciseId, i, "durationMin", e.target.value)
+                    }
+                  />
+                ) : (
+                  <>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="–"
+                      value={r.reps}
+                      onChange={(e) =>
+                        updateRow(ex.exerciseId, i, "reps", e.target.value)
+                      }
+                    />
+                    {!isBodyweight && (
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="–"
+                        value={r.weight}
+                        onChange={(e) =>
+                          updateRow(ex.exerciseId, i, "weight", e.target.value)
+                        }
+                      />
                     )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                  </>
+                )}
+              </div>
+            ))}
             <button
               type="button"
-              className="secondary"
+              className="btn-ghost btn-block"
+              style={{ marginTop: 12 }}
               onClick={() => addSet(ex.exerciseId)}
             >
               + Add set
@@ -293,18 +301,30 @@ export default function LogForm({
         );
       })}
 
-      <div className="panel">
-        <label style={{ display: "block", marginBottom: 10 }}>
-          Notes (optional)
-          <br />
-          <textarea
-            style={{ width: "100%", minHeight: 60, marginTop: 4 }}
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-          />
-        </label>
-        <button type="button" onClick={submit} disabled={submitting}>
-          {submitting ? "Saving…" : "Save workout"}
+      <label className="field" style={{ margin: "4px 0 90px" }}>
+        <span>Notes (optional)</span>
+        <textarea
+          style={{ minHeight: 64, fontFamily: "var(--font-body)" }}
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+        />
+      </label>
+
+      {flash && (
+        <div className={`toast${flash.kind === "error" ? " error" : ""}`} role="status">
+          {flash.msg}
+        </div>
+      )}
+
+      <div className="savebar">
+        <span className="count">
+          <strong>
+            {filledCount} set{filledCount === 1 ? "" : "s"}
+          </strong>
+          {day?.name} · {date.slice(5)}
+        </span>
+        <button type="button" onClick={submit} disabled={submitting || filledCount === 0}>
+          {submitting ? "Saving…" : "Save"}
         </button>
       </div>
     </>
