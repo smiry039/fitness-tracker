@@ -75,5 +75,14 @@ CREATE UNIQUE INDEX "Exercise_name_key" ON "Exercise"("name");
 CREATE UNIQUE INDEX "RoutineExercise_routineDayId_exerciseId_key" ON "RoutineExercise"("routineDayId", "exerciseId");
 
 -- CreateIndex
+CREATE INDEX "WorkoutSession_date_idx" ON "WorkoutSession"("date");
+
+-- CreateIndex
+CREATE INDEX "SetLog_exerciseId_idx" ON "SetLog"("exerciseId");
+
+-- CreateIndex
+CREATE INDEX "SetLog_sessionId_idx" ON "SetLog"("sessionId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "VikingStat_vikingId_key_key" ON "VikingStat"("vikingId", "key");
 

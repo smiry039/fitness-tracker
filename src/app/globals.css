@@ -50,6 +50,18 @@ a {
   text-decoration: none;
 }
 
+/* Rapid taps must never trigger double-tap zoom (steppers, tabs, checks) and
+   we draw our own pressed states, so kill the grey flash too. */
+a,
+button,
+input,
+select,
+textarea,
+summary {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* ---- App shell ---------------------------------------------------------- */
 
 .app {
@@ -323,16 +335,16 @@ label.field > span {
   color: var(--copper);
 }
 
-/* Set entry rows in the log form */
+/* Set entry rows in the log form: n° | reps stepper | kg stepper | done ✓ */
 .set-row {
   display: grid;
-  grid-template-columns: 34px 1fr 1fr;
-  gap: 10px;
+  grid-template-columns: 20px 1fr 1fr 44px;
+  gap: 8px;
   align-items: center;
   margin-top: 8px;
 }
 .set-row.cardio {
-  grid-template-columns: 34px 1fr;
+  grid-template-columns: 20px 1fr 44px;
 }
 .set-row .set-n {
   font-family: var(--font-mono);
@@ -341,17 +353,17 @@ label.field > span {
   color: var(--steel-dim);
   text-align: center;
 }
-.set-row input {
-  text-align: center;
+.set-row.is-done .set-n {
+  color: var(--copper);
 }
 .field-cols {
   display: grid;
-  grid-template-columns: 34px 1fr 1fr;
-  gap: 10px;
+  grid-template-columns: 20px 1fr 1fr 44px;
+  gap: 8px;
   margin-top: 12px;
 }
 .field-cols.cardio {
-  grid-template-columns: 34px 1fr;
+  grid-template-columns: 20px 1fr 44px;
 }
 .field-cols span {
   font-family: var(--font-mono);
@@ -360,6 +372,67 @@ label.field > span {
   text-transform: uppercase;
   color: var(--steel-dim);
   text-align: center;
+}
+
+/* Stepper: [−] value [+] — no keyboard needed for the usual nudges. */
+.stepper {
+  display: flex;
+  align-items: stretch;
+  background: var(--iron);
+  border: 1px solid var(--iron-line);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  min-height: 46px;
+}
+.stepper button {
+  flex: 0 0 30px;
+  min-height: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--steel);
+  font-size: 20px;
+  font-weight: 600;
+  padding: 0;
+}
+.stepper button:active {
+  background: var(--iron-line);
+  transform: none;
+}
+.stepper input {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  text-align: center;
+  padding: 0;
+  font-variant-numeric: tabular-nums;
+}
+.stepper input:focus {
+  outline: none;
+  background: var(--copper-glow);
+}
+.set-row.is-done .stepper {
+  border-color: var(--copper-deep);
+}
+
+/* Done toggle */
+.check {
+  width: 44px;
+  min-height: 46px;
+  border-radius: var(--radius-sm);
+  background: var(--iron);
+  border: 1px solid var(--iron-line);
+  color: var(--steel-dim);
+  font-size: 18px;
+  font-weight: 700;
+  padding: 0;
+}
+.check[aria-pressed="true"] {
+  background: var(--copper);
+  border-color: var(--copper);
+  color: var(--iron);
 }
 
 /* ---- Stat bars (Viking) --------------------------------------------------- */
@@ -567,16 +640,25 @@ nav.tabbar a {
   align-items: center;
   justify-content: center;
   gap: 3px;
+  height: 100%;
+  min-width: 44px;
   color: var(--steel-dim);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  -webkit-tap-highlight-color: transparent;
+  transition: color 0.12s ease;
 }
 nav.tabbar a svg {
-  width: 23px;
-  height: 23px;
+  width: 24px;
+  height: 24px;
+  transition: transform 0.1s ease;
+}
+nav.tabbar a:active {
+  color: var(--steel);
+}
+nav.tabbar a:active svg {
+  transform: scale(0.88);
 }
 nav.tabbar a.active {
   color: var(--copper);
@@ -586,9 +668,9 @@ nav.tabbar a.fab-slot {
 }
 nav.tabbar .fab {
   position: absolute;
-  top: -20px;
-  width: 56px;
-  height: 56px;
+  top: -22px;
+  width: 58px;
+  height: 58px;
   border-radius: 50%;
   background: var(--copper);
   color: var(--iron);
@@ -597,13 +679,17 @@ nav.tabbar .fab {
   justify-content: center;
   box-shadow: 0 6px 18px rgba(199, 123, 67, 0.35);
   border: 4px solid var(--iron);
+  transition: transform 0.1s ease;
 }
 nav.tabbar .fab svg {
   width: 26px;
   height: 26px;
 }
+nav.tabbar a.fab-slot:active .fab {
+  transform: scale(0.92);
+}
 nav.tabbar a.fab-slot .lbl {
-  margin-top: 34px;
+  margin-top: 36px;
 }
 nav.tabbar a.fab-slot.active .fab {
   background: var(--bone);
@@ -642,6 +728,27 @@ details.day-fold[open] > summary .chev {
 }
 details.day-fold .fold-body {
   padding: 0 16px 16px;
+}
+
+/* Loading skeletons */
+.skel {
+  background: var(--iron-raised);
+  border-radius: 10px;
+  animation: skel-pulse 1.1s ease-in-out infinite;
+}
+.skel-card {
+  height: 120px;
+  border-radius: var(--radius);
+  margin-bottom: 12px;
+}
+@keyframes skel-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
 }
 
 .stat-tiles {

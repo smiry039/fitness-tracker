@@ -1,6 +1,7 @@
 // Data-access layer. Both the API routes and the server components call these
 // helpers so the query + XP logic lives in exactly one place.
 
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import {
   buildVikingView,
@@ -11,17 +12,23 @@ import {
 
 // --- Routine -------------------------------------------------------------
 
-export async function getRoutine() {
-  return prisma.routineDay.findMany({
-    orderBy: { dayOrder: "asc" },
-    include: {
-      exercises: {
-        orderBy: { order: "asc" },
-        include: { exercise: true },
+// The routine only changes when the seed is re-run, but it's read on almost
+// every screen. Cache it server-side so page renders don't pay a DB round
+// trip for data that's identical for days at a time.
+export const getRoutine = unstable_cache(
+  async () =>
+    prisma.routineDay.findMany({
+      orderBy: { dayOrder: "asc" },
+      include: {
+        exercises: {
+          orderBy: { order: "asc" },
+          include: { exercise: true },
+        },
       },
-    },
-  });
-}
+    }),
+  ["routine-v1"],
+  { revalidate: 300, tags: ["routine"] },
+);
 
 export async function getRoutineDay(id: number) {
   return prisma.routineDay.findUnique({
@@ -35,13 +42,16 @@ export async function getRoutineDay(id: number) {
   });
 }
 
+type RoutineDays = Awaited<ReturnType<typeof getRoutine>>;
+
 /**
  * Suggest today's training day. If a day is scheduled for today's weekday, use
  * it. Otherwise fall back to whatever follows the most recently logged day in
- * the split rotation, then to the first day.
+ * the split rotation, then to the first day. Pass the routine in if the caller
+ * already fetched it, to avoid a duplicate query.
  */
-export async function getSuggestedDay() {
-  const days = await getRoutine();
+export async function getSuggestedDay(routine?: RoutineDays) {
+  const days = routine ?? (await getRoutine());
   if (days.length === 0) return null;
 
   const todayDow = new Date().getDay(); // 0=Sun..6=Sat
@@ -62,8 +72,58 @@ export async function getSuggestedDay() {
 
 // --- Exercises -----------------------------------------------------------
 
-export async function getExercises() {
-  return prisma.exercise.findMany({ orderBy: { name: "asc" } });
+export const getExercises = unstable_cache(
+  async () => prisma.exercise.findMany({ orderBy: { name: "asc" } }),
+  ["exercises-v1"],
+  { revalidate: 300, tags: ["routine"] },
+);
+
+// --- Last performance ------------------------------------------------------
+
+export interface LastSet {
+  reps: number | null;
+  weight: number | null;
+  durationSec: number | null;
+}
+
+/**
+ * For each exercise, the sets from the most recent session it appeared in —
+ * used to prefill the log form so a repeat performance is a single tap, and
+ * to show "last time" next to each lift. One query for the whole day.
+ */
+export async function getLastSetsForExercises(
+  exerciseIds: number[],
+): Promise<Record<number, LastSet[]>> {
+  if (exerciseIds.length === 0) return {};
+
+  const logs = await prisma.setLog.findMany({
+    where: { exerciseId: { in: exerciseIds } },
+    select: {
+      exerciseId: true,
+      sessionId: true,
+      setNumber: true,
+      reps: true,
+      weight: true,
+      durationSec: true,
+      session: { select: { date: true } },
+    },
+    orderBy: [{ session: { date: "desc" } }, { setNumber: "asc" }],
+    take: 600,
+  });
+
+  const latestSession = new Map<number, number>();
+  const out: Record<number, LastSet[]> = {};
+  for (const log of logs) {
+    const seen = latestSession.get(log.exerciseId);
+    if (seen === undefined) latestSession.set(log.exerciseId, log.sessionId);
+    else if (seen !== log.sessionId) continue; // older session — skip
+    (out[log.exerciseId] ??= []).push({
+      reps: log.reps,
+      weight: log.weight,
+      durationSec: log.durationSec,
+    });
+  }
+  return out;
 }
 
 // --- Sessions ------------------------------------------------------------

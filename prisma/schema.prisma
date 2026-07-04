@@ -70,6 +70,8 @@ model WorkoutSession {
 
   routineDay RoutineDay? @relation(fields: [routineDayId], references: [id], onDelete: SetNull)
   sets       SetLog[]
+
+  @@index([date])
 }
 
 /// A single logged set. Weight in kg; duration for cardio.
@@ -85,6 +87,9 @@ model SetLog {
 
   session  WorkoutSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   exercise Exercise       @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@index([exerciseId])
+  @@index([sessionId])
 }
 
 /// The character. Single-user for now (one Viking).

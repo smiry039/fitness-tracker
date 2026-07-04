@@ -12,12 +12,12 @@ const DOW = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export default async function TodayPage() {
-  const [routine, suggested, recent, viking] = await Promise.all([
+  const [routine, recent, viking] = await Promise.all([
     getRoutine(),
-    getSuggestedDay(),
     getRecentSessions(1),
     getViking(),
   ]);
+  const suggested = await getSuggestedDay(routine);
 
   const now = new Date();
   const lastSession = recent[0];

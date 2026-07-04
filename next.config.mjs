@@ -12,6 +12,12 @@ const nextConfig = {
       "@prisma/adapter-libsql",
       "@prisma/client",
     ],
+    // Reuse client-side route payloads for 30s so hopping between tabs is
+    // instant; saving a workout calls router.refresh() which busts this.
+    staleTimes: {
+      dynamic: 30,
+      static: 180,
+    },
   },
   async headers() {
     // Sensible defaults for a personal, single-origin app.
