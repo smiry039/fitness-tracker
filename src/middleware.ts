@@ -1,62 +1,53 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import {
+  SESSION_COOKIE,
+  SESSION_RENEW_AFTER_S,
+  authEnabled,
+  createSessionToken,
+  sessionCookieOptions,
+  verifySessionToken,
+} from "@/lib/auth";
 
 // Optional gate for hosted deployments.
 //
-// This is a single-user personal app with no account system. When hosted on a
-// public URL you almost certainly do NOT want the whole world reading and
-// writing your training log. Set APP_PASSWORD (and optionally APP_USER) in the
-// host's environment and the entire app — pages and API — is protected behind
-// HTTP Basic Auth. Leave APP_PASSWORD unset for local development (no prompt).
-//
-// Basic Auth is fine over HTTPS for one person; it is not a substitute for real
-// accounts if this ever becomes multi-user.
+// Single-user app, no accounts. Set APP_PASSWORD (and optionally APP_USER) in
+// the host's environment and every page and API route requires a session
+// cookie, obtained once via the /login form. Unlike HTTP Basic Auth this works
+// inside a home-screen PWA (which can't show the Basic Auth prompt) and the
+// session lasts ~400 days, renewed automatically while you keep using it.
+// Leave APP_PASSWORD unset for local development (no login).
 
-function unauthorized() {
-  return new NextResponse("Authentication required", {
-    status: 401,
-    headers: { "WWW-Authenticate": 'Basic realm="Fitness Tracker", charset="UTF-8"' },
-  });
-}
+const PUBLIC_PATHS = new Set(["/login", "/api/login"]);
 
-// Constant-time-ish string comparison to avoid trivial timing leaks.
-function safeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
-}
+export async function middleware(req: NextRequest) {
+  if (!authEnabled()) return NextResponse.next();
+  const { pathname, search } = req.nextUrl;
+  if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
 
-export function middleware(req: NextRequest) {
-  const password = process.env.APP_PASSWORD;
-  // No password configured -> auth disabled (local dev).
-  if (!password) return NextResponse.next();
-
-  const expectedUser = process.env.APP_USER || "viking";
-
-  const header = req.headers.get("authorization") || "";
-  if (!header.startsWith("Basic ")) return unauthorized();
-
-  let decoded = "";
-  try {
-    decoded = atob(header.slice(6));
-  } catch {
-    return unauthorized();
+  const left = await verifySessionToken(req.cookies.get(SESSION_COOKIE)?.value);
+  if (left !== null) {
+    const res = NextResponse.next();
+    // Sliding renewal: past half-life, hand out a fresh year+.
+    if (left < SESSION_RENEW_AFTER_S) {
+      res.cookies.set(SESSION_COOKIE, await createSessionToken(), sessionCookieOptions);
+    }
+    return res;
   }
 
-  const sep = decoded.indexOf(":");
-  if (sep === -1) return unauthorized();
-  const user = decoded.slice(0, sep);
-  const pass = decoded.slice(sep + 1);
-
-  const ok = safeEqual(user, expectedUser) && safeEqual(pass, password);
-  return ok ? NextResponse.next() : unauthorized();
+  if (pathname.startsWith("/api/")) {
+    return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+  }
+  const url = req.nextUrl.clone();
+  url.pathname = "/login";
+  url.search = `?next=${encodeURIComponent(pathname + search)}`;
+  return NextResponse.redirect(url);
 }
 
 export const config = {
-  // Protect everything except Next's static assets and the PWA assets —
-  // launchers fetch the manifest/icons without credentials when installing
-  // to the home screen, and none of them contain user data.
+  // Everything except Next's static assets and the PWA assets — launchers
+  // fetch the manifest/icons without credentials when installing to the home
+  // screen, and none of them contain user data.
   matcher: [
     "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icon-192.png|icon-512.png|apple-touch-icon.png).*)",
   ],

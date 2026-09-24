@@ -65,7 +65,10 @@ exact exercises, targets, and cues.
 - All writes go through validated, bounded input parsing; Prisma parameterises
   every query (no SQL injection).
 - **Hosting:** the app has no account system. Set `APP_PASSWORD` and the whole
-  site sits behind HTTP Basic Auth (`src/middleware.ts`). Unset locally.
+  site sits behind a sign-in page (`src/middleware.ts`, `src/lib/auth.ts`).
+  Signing in sets an HttpOnly signed cookie that lasts ~400 days and renews
+  itself while used, so each device (including a home-screen PWA) signs in
+  once. Changing the password signs every device out. Unset locally.
 - Production uses **Turso** (managed DB, token-based, rotatable) rather than a
   file on the server — smaller attack surface, nothing to patch.
 
