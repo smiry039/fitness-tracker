@@ -47,11 +47,14 @@ type RoutineDays = Awaited<ReturnType<typeof getRoutine>>;
 /**
  * Suggest today's training day. If a day is scheduled for today's weekday, use
  * it. Otherwise fall back to whatever follows the most recently logged day in
- * the split rotation, then to the first day. Pass the routine in if the caller
- * already fetched it, to avoid a duplicate query.
+ * the split rotation, then to the first day. Unscheduled days (no dayOfWeek)
+ * are alternatives: loggable, but left out of the rotation. Pass the routine
+ * in if the caller already fetched it, to avoid a duplicate query.
  */
 export async function getSuggestedDay(routine?: RoutineDays) {
-  const days = routine ?? (await getRoutine());
+  const all = routine ?? (await getRoutine());
+  const scheduledDays = all.filter((d) => d.dayOfWeek !== null);
+  const days = scheduledDays.length > 0 ? scheduledDays : all;
   if (days.length === 0) return null;
 
   const todayDow = new Date().getDay(); // 0=Sun..6=Sat

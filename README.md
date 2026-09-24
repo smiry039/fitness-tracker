@@ -48,10 +48,14 @@ same endpoints.
 
 ## The program
 
-The seeded routine is **"Aesthetic Mass"** — a Viking-bias full-body split
-trained 3×/week (Mon/Wed/Fri): chest & back twice every session (heaviest
-first), delts every day, rear delts twice, legs minimal. See `prisma/seed.ts`
-for the exact Day A / B / C exercises, targets, and cues.
+The current block is **"Balanced Hypertrophy"** — full body 3×/week
+(Mon/Wed/Fri), ~7 exercises a session. Legs lead every day (Day 1 quads, Day 2
+glutes/hams, Day 3 balanced), arms get a curl + triceps superset every session,
+chest and back drop to one movement each per day, laterals every day.
+
+The previous **"Aesthetic Mass"** block (Day A / B / C) is kept as unscheduled
+alternatives — loggable, never auto-suggested. See `prisma/program.ts` for the
+exact exercises, targets, and cues.
 
 ## Security
 
@@ -72,7 +76,7 @@ persistent) and the Docker alternative.
 
 ```bash
 npm install          # installs deps (see engine note below)
-npm run db:reset     # create the SQLite DB + seed the default routine & demo data
+npm run db:reset     # create the SQLite DB + seed the routine (wipes all data!)
 npm run dev          # http://localhost:3000
 ```
 
@@ -93,7 +97,9 @@ npx prisma db push
 ```
 prisma/
   schema.prisma      # data model: exercises, routine, sessions, sets, viking
-  seed.ts            # default Push/Pull/Legs routine + demo history
+  program.ts         # the training program (exercises + days)
+  seed.ts            # fresh DB: wipe + load program
+  sync-routine.ts    # live DB: apply program, keep history
 src/
   lib/
     prisma.ts        # PrismaClient singleton
@@ -129,6 +135,11 @@ src/
 
 ## Changing the routine
 
-The program lives in `prisma/seed.ts` (`EXERCISES` + `ROUTINE`). Edit it and run
-`npm run db:reset` to rebuild the database with your changes. No fake history is
-seeded — the graph and calendar fill in from the sessions you actually log.
+The program lives in `prisma/program.ts` (`EXERCISES` + `ROUTINE`). Edit it,
+then run `npm run db:sync-routine` — it updates exercises and routine days in
+place and **keeps every logged session, set and Viking XP**. Days with a
+`dayOfWeek` are the rotation; `dayOfWeek: null` days are loggable alternatives.
+Never rename an exercise that has history — add a new one instead.
+
+`npm run db:reset` rebuilds from scratch and **wipes all history** — only for a
+fresh local database.
