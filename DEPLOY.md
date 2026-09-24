@@ -46,7 +46,10 @@ export TURSO_AUTH_TOKEN="...."              # from `db tokens create`
 npx tsx prisma/seed.ts
 ```
 
-> Re-run these two lines any time you change `prisma/seed.ts`. To rebuild the
+> `seed.ts` wipes everything — use it only for the first load. After you have
+> history, apply routine changes (`prisma/program.ts`) with the same two
+> exports and `npx tsx prisma/sync-routine.ts` — it keeps all logged data. To
+> rebuild the
 > schema file after a `schema.prisma` change:
 > `npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script > prisma/turso-schema.sql`
 
