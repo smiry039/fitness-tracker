@@ -5,7 +5,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 interface ExOption {
   id: number;
   name: string;
-  muscleGroup: string;
+  inPlan: boolean;
+  hasData: boolean;
 }
 
 interface Point {
@@ -23,19 +24,21 @@ const METRICS: { key: Metric; label: string; unit: string }[] = [
   { key: "totalVolume", label: "Volume", unit: "kg" },
 ];
 
-// Palette tokens; copper validated ≥3:1 against the raised surface.
-const COPPER = "#c77b43";
-const GRID = "#2c3036";
-const INK_MUTED = "#8a9099";
-const BONE = "#eceae4";
+// Palette tokens (see globals.css): lilac series, yellow "you are here".
+const LINE = "#b9a4ff";
+const SUN = "#ffd64a";
+const GRID = "#2a2a2f";
+const INK_MUTED = "#6b6b73";
+const INK = "#f4f4f5";
+const SURFACE = "#141416";
 
 // --- Tiny dependency-free line chart with a touch scrubber -----------------
 // A single series on a dark surface: 2px line, recessive horizontal grid,
 // drag/touch anywhere to read exact values. Replaces a ~100 kB chart lib.
 
 const W = 360;
-const H = 232;
-const PAD = { top: 26, right: 12, bottom: 20, left: 38 };
+const H = 220;
+const PAD = { top: 30, right: 10, bottom: 22, left: 34 };
 
 function niceTicks(min: number, max: number, count = 4): number[] {
   if (min === max) {
@@ -151,14 +154,17 @@ function LineChart({
             y1={yFor(t)}
             y2={yFor(t)}
             stroke={GRID}
-            strokeWidth={1}
+            strokeWidth={1.2}
+            strokeDasharray="1 4"
+            strokeLinecap="round"
           />
           <text
-            x={PAD.left - 6}
+            x={PAD.left - 8}
             y={yFor(t) + 3}
             textAnchor="end"
-            fontSize={9.5}
-            fontFamily="var(--font-mono)"
+            fontSize={10}
+            fontWeight={600}
+            fontFamily="var(--font-body)"
             fill={INK_MUTED}
           >
             {fmt(t)}
@@ -169,8 +175,9 @@ function LineChart({
       <text
         x={PAD.left}
         y={H - 6}
-        fontSize={9.5}
-        fontFamily="var(--font-mono)"
+        fontSize={10}
+        fontWeight={600}
+        fontFamily="var(--font-body)"
         fill={INK_MUTED}
       >
         {points[0].date.slice(5).replace("-", "/")}
@@ -179,17 +186,33 @@ function LineChart({
         x={W - PAD.right}
         y={H - 6}
         textAnchor="end"
-        fontSize={9.5}
-        fontFamily="var(--font-mono)"
+        fontSize={10}
+        fontWeight={600}
+        fontFamily="var(--font-body)"
         fill={INK_MUTED}
       >
         {points[points.length - 1].date.slice(5).replace("-", "/")}
       </text>
 
-      <path d={areaPath} fill={COPPER} opacity={0.08} />
-      <path d={linePath} fill="none" stroke={COPPER} strokeWidth={2} strokeLinejoin="round" />
+      <defs>
+        <linearGradient id="area-fill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={LINE} stopOpacity={0.28} />
+          <stop offset="100%" stopColor={LINE} stopOpacity={0} />
+        </linearGradient>
+      </defs>
+      <path d={areaPath} fill="url(#area-fill)" />
+      <path
+        d={linePath}
+        fill="none"
+        stroke={LINE}
+        strokeWidth={2.4}
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
       {points.length <= 30 &&
-        xs.map((x, i) => <circle key={i} cx={x} cy={ys[i]} r={2.8} fill={COPPER} />)}
+        xs.map((x, i) => (
+          <circle key={i} cx={x} cy={ys[i]} r={3} fill={SURFACE} stroke={LINE} strokeWidth={1.6} />
+        ))}
 
       {a != null && (
         <g>
@@ -198,19 +221,20 @@ function LineChart({
             x2={xs[a]}
             y1={PAD.top - 4}
             y2={H - PAD.bottom}
-            stroke={INK_MUTED}
-            strokeWidth={1}
-            strokeDasharray="3 3"
+            stroke={SUN}
+            strokeWidth={1.2}
+            strokeDasharray="1 4"
+            strokeLinecap="round"
           />
-          <circle cx={xs[a]} cy={ys[a]} r={5} fill={COPPER} stroke="#1e2126" strokeWidth={2} />
+          <circle cx={xs[a]} cy={ys[a]} r={6} fill={SUN} stroke={SURFACE} strokeWidth={3} />
           <text
             x={tipX}
             y={12}
             textAnchor="middle"
-            fontSize={11}
+            fontSize={12}
             fontWeight={700}
-            fontFamily="var(--font-mono)"
-            fill={BONE}
+            fontFamily="var(--font-body)"
+            fill={INK}
           >
             {fmt(points[a].value)} {unit}
           </text>
@@ -218,8 +242,9 @@ function LineChart({
             x={tipX}
             y={22}
             textAnchor="middle"
-            fontSize={8.5}
-            fontFamily="var(--font-mono)"
+            fontSize={9.5}
+            fontWeight={600}
+            fontFamily="var(--font-body)"
             fill={INK_MUTED}
           >
             {points[a].date}
@@ -234,7 +259,12 @@ function LineChart({
 
 export default function GraphClient({ exercises }: { exercises: ExOption[] }) {
   const [exerciseId, setExerciseId] = useState<number | null>(
-    exercises[0]?.id ?? null,
+    () =>
+      (
+        exercises.find((e) => e.inPlan && e.hasData) ??
+        exercises.find((e) => e.hasData) ??
+        exercises[0]
+      )?.id ?? null,
   );
   const [metric, setMetric] = useState<Metric>("estimated1RM");
   const [data, setData] = useState<Point[]>([]);
@@ -275,8 +305,10 @@ export default function GraphClient({ exercises }: { exercises: ExOption[] }) {
     if (data.length === 0) return null;
     const values = data.map((d) => d[metric]);
     const latest = values[values.length - 1];
-    const delta = latest - values[0];
-    return { latest, delta, sessions: data.length };
+    const first = values[0];
+    const delta = latest - first;
+    const pct = first > 0 ? delta / first : 0;
+    return { latest, delta, pct, best: Math.max(...values), sessions: data.length };
   }, [data, metric]);
 
   const chartPoints = useMemo(
@@ -288,28 +320,32 @@ export default function GraphClient({ exercises }: { exercises: ExOption[] }) {
     return <div className="card">No weighted exercises to chart yet.</div>;
   }
 
+  const inPlan = exercises.filter((e) => e.inPlan);
+  const others = exercises.filter((e) => !e.inPlan);
+  const option = (e: ExOption) => (
+    <option key={e.id} value={e.id}>
+      {e.name}
+      {e.hasData ? "" : " · no data yet"}
+    </option>
+  );
+
   return (
     <>
-      <label className="field" style={{ marginBottom: 10 }}>
-        <span>Exercise</span>
-        <select
-          value={exerciseId ?? ""}
-          onChange={(e) => setExerciseId(Number(e.target.value))}
-        >
-          {exercises.map((e) => (
-            <option key={e.id} value={e.id}>
-              {e.name}
-            </option>
-          ))}
-        </select>
-      </label>
+      <select
+        aria-label="Exercise"
+        value={exerciseId ?? ""}
+        onChange={(e) => setExerciseId(Number(e.target.value))}
+        style={{ marginBottom: 10 }}
+      >
+        {inPlan.length > 0 && <optgroup label="Current split">{inPlan.map(option)}</optgroup>}
+        {others.length > 0 && <optgroup label="Other lifts">{others.map(option)}</optgroup>}
+      </select>
 
-      <div className="pills" style={{ marginBottom: 12 }} role="group" aria-label="Metric">
+      <div className="segmented" role="group" aria-label="Metric">
         {METRICS.map((m) => (
           <button
             key={m.key}
             type="button"
-            className="pill"
             aria-pressed={metric === m.key}
             onClick={() => setMetric(m.key)}
           >
@@ -318,47 +354,58 @@ export default function GraphClient({ exercises }: { exercises: ExOption[] }) {
         ))}
       </div>
 
-      {summary && (
-        <div className="stat-tiles">
-          <div className="tile">
-            <div className="k">Latest {meta.label}</div>
-            <div className="v">
-              {fmt(summary.latest)} <small>{meta.unit}</small>
+      <div className="card" style={{ padding: "18px 12px 10px" }}>
+        {summary && (
+          <div style={{ padding: "0 6px 6px", display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 12 }}>
+            <div>
+              <span className="card-label">Latest · {meta.label}</span>
+              <div className="dot" style={{ fontSize: 52, marginTop: 8 }}>
+                {fmt(summary.latest)}
+                <span style={{ fontFamily: "var(--font-body)", fontSize: 16, fontWeight: 600, color: "var(--text-2)", marginLeft: 6 }}>
+                  {meta.unit}
+                </span>
+              </div>
             </div>
+            <span className={`chip ${summary.delta >= 0 ? "good" : "bad"}`}>
+              {summary.delta >= 0 ? "▲" : "▼"} {Math.abs(Math.round(summary.pct * 100))}%
+            </span>
           </div>
-          <div className="tile">
-            <div className="k">Change · {summary.sessions} sessions</div>
-            <div
-              className="v"
-              style={{ color: summary.delta >= 0 ? "var(--good)" : "var(--danger)" }}
-            >
-              {summary.delta >= 0 ? "+" : ""}
-              {fmt(summary.delta)} <small>{meta.unit}</small>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="card" style={{ padding: "12px 10px 8px" }}>
+        )}
         {loading ? (
-          <div className="skel" style={{ height: 220 }} />
+          <div className="skel" style={{ height: 210, margin: "6px" }} />
         ) : chartPoints.length === 0 ? (
-          <p className="muted" style={{ padding: "40px 24px" }}>
-            No logged sets for this lift yet. Log a workout and it starts
-            tracking.
+          <p className="muted" style={{ padding: "48px 24px", textAlign: "center" }}>
+            No logged sets for this lift yet. Log a workout and it starts tracking.
           </p>
         ) : (
           <>
             <LineChart points={chartPoints} unit={meta.unit} />
-            <p
-              className="muted"
-              style={{ fontSize: 10.5, textAlign: "center", margin: "2px 0 4px" }}
-            >
-              press + drag to read values
+            <p className="faint" style={{ fontSize: 11.5, textAlign: "center", margin: "4px 0 2px" }}>
+              Press and drag to read values
             </p>
           </>
         )}
       </div>
+
+      {summary && (
+        <div className="tiles-3">
+          <div className="card">
+            <div className="stat-k">Best</div>
+            <div className="dot stat-v" style={{ fontSize: 24 }}>{fmt(summary.best)}</div>
+          </div>
+          <div className="card">
+            <div className="stat-k">Change</div>
+            <div className="dot stat-v" style={{ fontSize: 24, color: summary.delta >= 0 ? "var(--good)" : "var(--bad)" }}>
+              {summary.delta >= 0 ? "+" : "−"}
+              {fmt(Math.abs(summary.delta))}
+            </div>
+          </div>
+          <div className="card">
+            <div className="stat-k">Sessions</div>
+            <div className="dot stat-v" style={{ fontSize: 24 }}>{summary.sessions}</div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

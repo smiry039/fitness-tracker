@@ -147,6 +147,7 @@ export interface VikingStatView extends LevelProgress {
 export interface VikingView {
   name: string;
   overallLevel: number;
+  overall: LevelProgress; // level progress on total XP
   totalXp: number;
   stats: VikingStatView[];
 }
@@ -166,10 +167,12 @@ export function buildVikingView(
   });
 
   const totalXp = stats.reduce((sum, s) => sum + s.xp, 0);
+  const overall = levelForXp(totalXp);
 
   return {
     name,
-    overallLevel: levelForXp(totalXp).level,
+    overallLevel: overall.level,
+    overall,
     totalXp,
     stats,
   };

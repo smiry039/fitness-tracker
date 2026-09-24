@@ -39,13 +39,12 @@ export default async function LogPage({
 
   return (
     <>
-      <p className="eyebrow">Log a workout</p>
-      <h1 className="screen-title">
-        Every set <span className="accent">counts.</span>
-      </h1>
-      <p className="screen-sub">
-        Tick the sets you did — tweak with the steppers. Weight in kg.
-      </p>
+      <header className="page-head">
+        <div>
+          <p className="eyebrow">Arrange your flow, then go</p>
+          <h1>Log workout</h1>
+        </div>
+      </header>
       <LogForm days={days} preselectDayId={preselect} lastSets={lastSets} />
     </>
   );

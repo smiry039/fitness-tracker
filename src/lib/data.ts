@@ -73,6 +73,86 @@ export async function getSuggestedDay(routine?: RoutineDays) {
   return days[(idx + 1) % days.length];
 }
 
+// --- Week summary --------------------------------------------------------
+
+const DAY_MS = 86_400_000;
+const WEEK_MS = 7 * DAY_MS;
+
+// Monday 00:00 UTC of the week containing `d`. Logged dates are stored as UTC
+// midnight, so UTC week boundaries line up with the dates you picked.
+function weekStartUTC(d: Date): number {
+  const midnight = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+  return midnight - ((d.getUTCDay() + 6) % 7) * DAY_MS;
+}
+
+export interface WeekSummary {
+  setsDone: number; // this week
+  setsPlanned: number; // sum of target sets across scheduled days
+  lastWeekSetsDone: number;
+  sessions: number; // this week
+  sessionsPlanned: number; // scheduled days per week
+  sessionsExpected: number; // scheduled days already past this week
+  streakWeeks: number; // consecutive weeks with at least one session
+}
+
+/**
+ * This week's training load against the plan, plus a week streak. Reads only
+ * session dates and set counts — cheap even with years of history.
+ */
+export async function getWeekSummary(routine?: RoutineDays): Promise<WeekSummary> {
+  const days = routine ?? (await getRoutine());
+  const scheduled = days.filter((d) => d.dayOfWeek !== null);
+  const setsPlanned = scheduled.reduce(
+    (n, d) =>
+      n + d.exercises.reduce((m, re) => m + (re.optional ? 0 : re.targetSets), 0),
+    0,
+  );
+
+  const now = new Date();
+  const thisWeek = weekStartUTC(now);
+  const todayIdx = (now.getUTCDay() + 6) % 7; // 0 = Monday
+  const sessionsExpected = scheduled.filter(
+    (d) => ((d.dayOfWeek ?? 0) + 6) % 7 < todayIdx,
+  ).length;
+
+  const sessions = await prisma.workoutSession.findMany({
+    select: { date: true, _count: { select: { sets: true } } },
+  });
+
+  let setsDone = 0;
+  let sessionsThisWeek = 0;
+  let lastWeekSetsDone = 0;
+  const weeks = new Set<number>();
+  for (const s of sessions) {
+    const w = weekStartUTC(s.date);
+    weeks.add(w);
+    if (w === thisWeek) {
+      setsDone += s._count.sets;
+      sessionsThisWeek += 1;
+    } else if (w === thisWeek - WEEK_MS) {
+      lastWeekSetsDone += s._count.sets;
+    }
+  }
+
+  // A week in progress doesn't break the streak until it's over.
+  let streakWeeks = 0;
+  let w = weeks.has(thisWeek) ? thisWeek : thisWeek - WEEK_MS;
+  while (weeks.has(w)) {
+    streakWeeks += 1;
+    w -= WEEK_MS;
+  }
+
+  return {
+    setsDone,
+    setsPlanned,
+    lastWeekSetsDone,
+    sessions: sessionsThisWeek,
+    sessionsPlanned: scheduled.length,
+    sessionsExpected,
+    streakWeeks,
+  };
+}
+
 // --- Exercises -----------------------------------------------------------
 
 export const getExercises = unstable_cache(
@@ -80,6 +160,12 @@ export const getExercises = unstable_cache(
   ["exercises-v1"],
   { revalidate: 300, tags: ["routine"] },
 );
+
+/** Ids of exercises that have at least one logged set. */
+export async function getLoggedExerciseIds(): Promise<Set<number>> {
+  const rows = await prisma.setLog.groupBy({ by: ["exerciseId"] });
+  return new Set(rows.map((r) => r.exerciseId));
+}
 
 // --- Last performance ------------------------------------------------------
 
