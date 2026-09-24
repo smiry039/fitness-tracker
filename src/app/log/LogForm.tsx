@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { LastSet } from "@/lib/data";
+import { CheckIcon, Ring } from "../ui";
 
 // The logging flow is built around one observation: most sets repeat last
 // session's numbers (or nudge them slightly). So every set arrives prefilled
@@ -64,7 +65,7 @@ function Stepper({
       <input
         type="text"
         inputMode={inputMode}
-        placeholder="–"
+        placeholder="0"
         aria-label={label}
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -96,6 +97,9 @@ export default function LogForm({
 
   const [dayId, setDayId] = useState<number | null>(initialDay?.id ?? null);
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  // The server renders in UTC; switch to the device's local date once mounted
+  // so an early-morning session isn't logged against yesterday.
+  useEffect(() => setDate(localDateISO()), []);
   const [notes, setNotes] = useState("");
   const [rows, setRows] = useState<Record<number, SetRow[]>>(() =>
     buildInitialRows(initialDay, lastSets),
@@ -115,6 +119,12 @@ export default function LogForm({
     const t = setTimeout(() => setFlash(null), 4500);
     return () => clearTimeout(t);
   }, [flash]);
+
+  const plannedCount = useMemo(
+    () =>
+      day?.exercises.reduce((n, ex) => n + (ex.optional ? 0 : ex.targetSets), 0) ?? 0,
+    [day],
+  );
 
   const doneCount = useMemo(() => {
     if (!day) return 0;
@@ -220,7 +230,7 @@ export default function LogForm({
         .join(" · ");
       setFlash({
         kind: "ok",
-        msg: `⚔ Saved! +${data.totalXp} XP${parts ? ` — ${parts}` : ""}`,
+        msg: `Saved · +${data.totalXp} XP${parts ? ` — ${parts}` : ""}`,
       });
       // Keep the numbers (they're now "last time") but clear the ticks.
       setRows((prev) => {
@@ -250,69 +260,89 @@ export default function LogForm({
     );
   }
 
+  const current = days.filter((d) => d.dayOfWeek != null);
+  const previous = days.filter((d) => d.dayOfWeek == null);
+
   return (
     <>
-      <div className="pills" style={{ marginBottom: 12 }} role="group" aria-label="Training day">
-        {days.map((d) => (
-          <button
-            key={d.id}
-            type="button"
-            className="pill"
-            aria-pressed={d.id === dayId}
-            onClick={() => onChangeDay(d.id)}
-          >
-            {d.name}
-          </button>
-        ))}
-      </div>
+      {current.length > 0 && (
+        <div className="segmented" role="group" aria-label="Training day">
+          {current.map((d) => (
+            <button
+              key={d.id}
+              type="button"
+              aria-pressed={d.id === dayId}
+              onClick={() => onChangeDay(d.id)}
+            >
+              {d.name}
+            </button>
+          ))}
+        </div>
+      )}
+      {previous.length > 0 && (
+        <div className="chips-row" role="group" aria-label="Previous block">
+          <span className="lbl">Previous block</span>
+          {previous.map((d) => (
+            <button
+              key={d.id}
+              type="button"
+              aria-pressed={d.id === dayId}
+              onClick={() => onChangeDay(d.id)}
+            >
+              {d.name}
+            </button>
+          ))}
+        </div>
+      )}
 
-      <label className="field" style={{ marginBottom: 16 }}>
-        <span>Date</span>
+      <div className="date-row">
         <input
           type="date"
+          aria-label="Workout date"
           value={date}
           onChange={(e) => setDate(e.target.value)}
         />
-      </label>
+        {day?.focus && <span className="chip lilac">{day.focus}</span>}
+      </div>
 
       {day?.exercises.map((ex) => {
         const isCardio = ex.kind === "cardio";
         const isBodyweight = ex.kind === "bodyweight";
         const list = rows[ex.exerciseId] ?? [];
+        const done = list.filter((r) => r.done).length;
+        const complete = done > 0 && done >= Math.min(ex.targetSets, list.length);
         const last = lastSets[ex.exerciseId];
         const lastLabel = last?.length
           ? isCardio
             ? `${Math.round((last[0].durationSec ?? 0) / 60)} min`
             : last
-                .map((s) =>
-                  s.weight ? `${s.reps}×${s.weight}` : `${s.reps ?? "–"}`,
-                )
+                .map((s) => (s.weight ? `${s.weight}×${s.reps}` : `${s.reps ?? "–"}`))
                 .join(" · ")
           : null;
+        const cols = isCardio ? " cardio" : isBodyweight ? " bw" : "";
 
         return (
-          <div className="card" key={ex.exerciseId}>
-            <div className="card-head">
-              <span className="card-title">
-                {ex.optional && <span className="badge">Extra</span>}{" "}
-                {ex.name}
-              </span>
-              <span className="reps" style={{ flexShrink: 0 }}>
-                {ex.targetSets} × {ex.targetReps}
+          <div className={`card ex-card${complete ? " done" : ""}`} key={ex.exerciseId}>
+            <div className="ex-head">
+              <div>
+                <div className="ex-name">{ex.name}</div>
+                <div className="ex-meta">
+                  {ex.targetSets} × {ex.targetReps}
+                  {ex.optional && " · optional"}
+                  {lastLabel && (
+                    <>
+                      {" · "}Last <span className="hl">{lastLabel}</span>
+                    </>
+                  )}
+                </div>
+              </div>
+              <span className={`chip${complete ? " sun" : ""}`} aria-label={`${done} of ${list.length} sets done`}>
+                {done}/{list.length}
               </span>
             </div>
-            <p className="muted" style={{ fontSize: 12, marginTop: 3 }}>
-              {lastLabel ? (
-                <>
-                  <span style={{ color: "var(--copper)" }}>Last:</span>{" "}
-                  {lastLabel}
-                </>
-              ) : (
-                ex.cue
-              )}
-            </p>
+            {ex.cue && <p className="ex-cue">{ex.cue}</p>}
 
-            <div className={`field-cols${isCardio ? " cardio" : ""}`}>
+            <div className={`set-cols${cols}`}>
               <span />
               {isCardio ? (
                 <span>Minutes</span>
@@ -322,13 +352,10 @@ export default function LogForm({
                   {!isBodyweight && <span>kg</span>}
                 </>
               )}
-              <span>Done</span>
+              <span />
             </div>
             {list.map((r, i) => (
-              <div
-                className={`set-row${isCardio ? " cardio" : ""}${r.done ? " is-done" : ""}`}
-                key={i}
-              >
+              <div className={`set-row${cols}${r.done ? " is-done" : ""}`} key={i}>
                 <span className="set-n">{i + 1}</span>
                 {isCardio ? (
                   <Stepper
@@ -365,26 +392,22 @@ export default function LogForm({
                   aria-label={`Set ${i + 1} done`}
                   onClick={() => updateRow(ex.exerciseId, i, { done: !r.done })}
                 >
-                  ✓
+                  <CheckIcon />
                 </button>
               </div>
             ))}
-            <button
-              type="button"
-              className="btn-ghost btn-block"
-              style={{ marginTop: 12 }}
-              onClick={() => addSet(ex.exerciseId)}
-            >
+            <button type="button" className="add-set" onClick={() => addSet(ex.exerciseId)}>
               + Add set
             </button>
           </div>
         );
       })}
 
-      <label className="field" style={{ margin: "4px 0 110px" }}>
-        <span>Notes (optional)</span>
+      <label className="field" style={{ margin: "4px 0 96px" }}>
+        <span>Notes</span>
         <textarea
-          style={{ minHeight: 64, fontFamily: "var(--font-body)" }}
+          style={{ minHeight: 72, fontWeight: 500 }}
+          placeholder="How did it feel?"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
         />
@@ -397,18 +420,32 @@ export default function LogForm({
       )}
 
       <div className="savebar">
+        <Ring
+          value={plannedCount ? doneCount / plannedCount : 0}
+          size={50}
+          stroke={5}
+          track="var(--surface-3)"
+        >
+          <span style={{ fontSize: 13 }}>{doneCount}</span>
+        </Ring>
         <span className="count">
           <strong>
-            {doneCount} set{doneCount === 1 ? "" : "s"} ✓
+            {doneCount} of {plannedCount} sets
           </strong>
-          {day?.name} · {date.slice(5)}
+          {day?.name} · {date.slice(8)}/{date.slice(5, 7)}
         </span>
-        <button type="button" onClick={submit} disabled={submitting || doneCount === 0}>
+        <button type="button" className="sun" onClick={submit} disabled={submitting || doneCount === 0}>
           {submitting ? "Saving…" : "Save"}
         </button>
       </div>
     </>
   );
+}
+
+function localDateISO(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 function buildInitialRows(
