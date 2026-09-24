@@ -20,7 +20,8 @@ openssl rand -base64 24
 ```
 
 You'll set this as `APP_PASSWORD` below; every page and API route then sits
-behind HTTP Basic Auth (`src/middleware.ts`).
+behind a sign-in page (`src/middleware.ts`). Each device signs in once and
+stays signed in (a ~400-day cookie that renews itself while you use the app).
 
 ### 2. Create the Turso database
 

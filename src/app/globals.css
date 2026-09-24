@@ -1242,3 +1242,13 @@ details.fold .fold-body {
   grid-column: 1 / -1;
   min-height: 0;
 }
+
+/* ---- Login --------------------------------------------------------------- */
+
+.login {
+  max-width: 400px;
+  margin: 8vh auto 0;
+}
+body:has(.login) nav.tabbar {
+  display: none;
+}
