@@ -41,7 +41,7 @@ export default async function LogPage({
     <>
       <header className="page-head">
         <div>
-          <p className="eyebrow">Tick sets as you go</p>
+          <p className="eyebrow">Arrange your flow, then go</p>
           <h1>Log workout</h1>
         </div>
       </header>

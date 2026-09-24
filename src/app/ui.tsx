@@ -190,8 +190,11 @@ export function ArrowRightIcon({ size = 20 }: IconProps) {
   );
 }
 
-export function ChevronIcon({ size = 20, dir = "right" }: IconProps & { dir?: "left" | "right" | "down" }) {
-  const rot = dir === "left" ? 180 : dir === "down" ? 90 : 0;
+export function ChevronIcon({
+  size = 20,
+  dir = "right",
+}: IconProps & { dir?: "left" | "right" | "up" | "down" }) {
+  const rot = { right: 0, down: 90, left: 180, up: -90 }[dir];
   return (
     <svg
       viewBox="0 0 24 24"
