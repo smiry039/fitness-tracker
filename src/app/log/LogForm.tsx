@@ -9,8 +9,8 @@ import Wheel from "./Wheel";
 // Workout flow. Before starting you arrange the day's exercises (the order is
 // remembered per day). During the workout the screen shows one set at a time
 // with big scroll wheels, then a rest timer, then the next set. Supersets
-// (adjacent exercises whose cue starts with "Superset") alternate set by set
-// with no rest between partners. Progress is kept in localStorage so a reload
+// (adjacent exercises whose cue starts with "Superset", paired two at a time)
+// alternate set by set with no rest between partners. Progress is kept in localStorage so a reload
 // or a locked phone never loses a workout.
 
 interface ExerciseDef {
@@ -88,13 +88,14 @@ function localDateISO(): string {
 
 const isSuperset = (ex?: ExerciseDef) => !!ex?.cue?.toLowerCase().startsWith("superset");
 
-/** Adjacent superset exercises form a group; everything else is a group of one. */
+/** Adjacent superset exercises pair up (two per group); everything else is a group of one. */
 function groupsFor(order: number[], byId: Map<number, ExerciseDef>): number[][] {
   const groups: number[][] = [];
   for (const id of order) {
     const last = groups[groups.length - 1];
     const prevId = last?.[last.length - 1];
-    if (last && isSuperset(byId.get(id)) && isSuperset(byId.get(prevId!))) last.push(id);
+    if (last && last.length < 2 && isSuperset(byId.get(id)) && isSuperset(byId.get(prevId!)))
+      last.push(id);
     else groups.push([id]);
   }
   return groups;
@@ -315,9 +316,15 @@ export default function LogForm({
       setPhase("finish");
       return;
     }
-    // No rest between superset partners.
+    // No rest between superset partners within a round (curl set 1 → press
+    // set 1); rest once the round is done (press set 1 → curl set 2).
     const group = groups.find((g) => g.includes(s.exerciseId));
-    const partner = group && group.length > 1 && group.includes(steps[next].exerciseId) && steps[next].exerciseId !== s.exerciseId;
+    const partner =
+      !!group &&
+      group.length > 1 &&
+      group.includes(steps[next].exerciseId) &&
+      steps[next].exerciseId !== s.exerciseId &&
+      steps[next].set === s.set;
     if (partner) {
       setActive({ ...a, step: next, restEndsAt: null });
       setPhase("set");

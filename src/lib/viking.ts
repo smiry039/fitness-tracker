@@ -42,7 +42,7 @@ export const STAT_META: Record<StatKey, StatMeta> = {
     key: "sinew",
     label: "Sinew",
     blurb: "Arm strength and grip — biceps and triceps for axe and oar.",
-    groups: ["arms", "biceps", "triceps"],
+    groups: ["arms", "biceps", "triceps", "forearms"],
   },
   heart: {
     key: "heart",
