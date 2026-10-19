@@ -102,7 +102,7 @@ function describeGroups(key: string): string {
     case "might":
       return "legs · calves";
     case "sinew":
-      return "biceps · triceps";
+      return "biceps · triceps · forearms";
     case "heart":
       return "cardio";
     default:

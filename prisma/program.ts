@@ -4,6 +4,11 @@
 // Current block: "Balanced Hypertrophy" (Day 1/2/3, Mon/Wed/Fri). Legs lead
 // every session, arms get direct work every day (superset to save time), chest
 // and back drop to one movement each per session. ~7 exercises per day.
+// Day 4 (Sat) is an arms + shoulder-width day: arms first while fresh, all in
+// antagonist pairs so it stays short.
+//
+// Supersets: an exercise whose cue starts with "Superset" pairs with the
+// adjacent one (pairs of two, in order) — the log flow alternates their sets.
 //
 // The previous "Aesthetic Mass" block (Day A/B/C) is kept as unscheduled
 // alternatives: still loggable, never auto-suggested.
@@ -47,6 +52,11 @@ export const EXERCISES: ExDef[] = [
   { name: "Face Pull · high rope", muscleGroup: "rear delt", kind: "weight" },
   { name: "Reverse Pec Deck", muscleGroup: "rear delt", kind: "weight" },
   // Arms
+  { name: "EZ-Bar Curl", muscleGroup: "biceps", kind: "weight" },
+  { name: "Preacher Curl · EZ / machine", muscleGroup: "biceps", kind: "weight" },
+  { name: "Close-Grip Bench · Smith", muscleGroup: "triceps", kind: "weight" },
+  { name: "Reverse-Grip EZ Curl", muscleGroup: "forearms", kind: "weight" },
+  { name: "DB Wrist Curl", muscleGroup: "forearms", kind: "weight" },
   { name: "Seated DB Curl", muscleGroup: "biceps", kind: "weight" },
   { name: "Incline DB Curl", muscleGroup: "biceps", kind: "weight" },
   { name: "Cable Curl", muscleGroup: "biceps", kind: "weight" },
@@ -114,6 +124,22 @@ export const ROUTINE: DayDef[] = [
       { name: "Cable / DB Lateral Raise", sets: 3, reps: "8–10", cue: "Constant tension — cables shine here." },
       { name: "Cable Curl", sets: 3, reps: "10–12", cue: "Superset with triceps ext." },
       { name: "Overhead Cable Triceps Ext", sets: 3, reps: "10–12", cue: "Superset with curl. Long head — deep stretch at the top." },
+    ],
+  },
+
+  {
+    name: "Day 4",
+    focus: "Arms + shoulder width",
+    dayOfWeek: 6, // Saturday
+    exercises: [
+      { name: "EZ-Bar Curl", sets: 3, reps: "8–10", cue: "Superset with close-grip press. Heaviest curl of the week — elbows pinned, 2s lower." },
+      { name: "Close-Grip Bench · Smith", sets: 3, reps: "8–10", cue: "Superset with EZ curl. Hands shoulder-width, elbows tucked. Heavy triceps — two-thirds of arm size." },
+      { name: "Preacher Curl · EZ / machine", sets: 3, reps: "10–12", cue: "Superset with overhead ext. Full stretch at the bottom, squeeze the peak." },
+      { name: "Overhead Cable Triceps Ext", sets: 3, reps: "10–12", cue: "Superset with preacher curl. Long head — deep stretch at the top." },
+      { name: "Reverse-Grip EZ Curl", sets: 3, reps: "10–12", cue: "Superset with wrist curl. Overhand grip — thickens the top of the forearm." },
+      { name: "DB Wrist Curl", sets: 3, reps: "12–15", cue: "Superset with reverse curl. Forearms on the bench, let it roll to the fingertips, curl up hard." },
+      { name: "Cable / DB Lateral Raise", sets: 4, reps: "8–10", cue: "Superset with rear delts. Width: lead with elbows. Last set: drop the weight and go to failure." },
+      { name: "Reverse Pec Deck", sets: 3, reps: "10–12", cue: "Superset with laterals. Rear delts round the shoulder out from the side." },
     ],
   },
 
