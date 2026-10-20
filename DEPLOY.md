@@ -66,6 +66,11 @@ npx tsx prisma/seed.ts
    - `APP_PASSWORD` — the `openssl rand` value from step 1
 4. Deploy. From then on, every push to `main` auto-deploys.
 
+Production deploys also apply `prisma/program.ts` to Turso before building
+(`scripts/sync-on-deploy.mjs` → `db:sync-routine`; logged history is never
+touched). So changing the routine is just: edit `program.ts`, push to `main`.
+Preview deploys skip the sync since they share the production database.
+
 You'll get a password-protected `https://…vercel.app` URL, free, with data that
 persists in Turso. **Never commit the token** — it lives only in Vercel's env.
 
