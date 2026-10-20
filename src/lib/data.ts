@@ -12,7 +12,12 @@ import {
 
 // --- Routine -------------------------------------------------------------
 
-// The routine only changes when the seed is re-run, but it's read on almost
+// Vercel's data cache outlives deploys, and production deploys sync program.ts
+// into the database, so key cached routine data to the deployed commit — a new
+// routine shows up as soon as its deploy goes live.
+const DEPLOY = process.env.VERCEL_GIT_COMMIT_SHA ?? "local";
+
+// The routine only changes when program.ts is synced, but it's read on almost
 // every screen. Cache it server-side so page renders don't pay a DB round
 // trip for data that's identical for days at a time.
 export const getRoutine = unstable_cache(
@@ -26,7 +31,7 @@ export const getRoutine = unstable_cache(
         },
       },
     }),
-  ["routine-v1"],
+  ["routine-v1", DEPLOY],
   { revalidate: 300, tags: ["routine"] },
 );
 
@@ -157,7 +162,7 @@ export async function getWeekSummary(routine?: RoutineDays): Promise<WeekSummary
 
 export const getExercises = unstable_cache(
   async () => prisma.exercise.findMany({ orderBy: { name: "asc" } }),
-  ["exercises-v1"],
+  ["exercises-v1", DEPLOY],
   { revalidate: 300, tags: ["routine"] },
 );
 
@@ -300,24 +305,17 @@ export async function createSession(
       },
     });
 
-    // Route XP into the (single) Viking. Create stats lazily on first use.
+    // Route XP into the (single) Viking. Create stats lazily on first use; an
+    // atomic increment saves a read per stat and can't lose a concurrent save.
     const viking = await tx.viking.findFirst();
     if (viking) {
       for (const [key, xp] of Object.entries(xpByStat)) {
         if (xp === 0) continue;
-        const existing = await tx.vikingStat.findUnique({
+        await tx.vikingStat.upsert({
           where: { vikingId_key: { vikingId: viking.id, key } },
+          update: { xp: { increment: xp } },
+          create: { vikingId: viking.id, key, xp },
         });
-        if (existing) {
-          await tx.vikingStat.update({
-            where: { id: existing.id },
-            data: { xp: existing.xp + xp },
-          });
-        } else {
-          await tx.vikingStat.create({
-            data: { vikingId: viking.id, key, xp },
-          });
-        }
       }
     }
 
